@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useCallback, useState } from 'react'
 import {
   View,
   Text,
@@ -7,10 +7,12 @@ import {
   ScrollView,
   Alert,
 } from 'react-native'
-import { useRouter } from 'expo-router'
+import Animated, { FadeInDown } from 'react-native-reanimated'
+import { useRouter, useFocusEffect } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTheme } from '@/src/context/ThemeContext'
 import { useAuth } from '@/src/context/AuthContext'
+import { useAlert } from '@/src/context/AlertContext'
 import {
   ArrowLeft,
   Sun,
@@ -24,19 +26,32 @@ import {
 export default function SettingsScreen() {
   const { colors, mode, setMode, isDark } = useTheme()
   const { user, signOut } = useAuth()
+  const { showAlert } = useAlert()
   const router = useRouter()
+  const [focusKey, setFocusKey] = useState(0)
+
+  useFocusEffect(
+    useCallback(() => {
+      setFocusKey(prev => prev + 1)
+    }, [])
+  )
 
   const handleLogout = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign Out',
-        style: 'destructive',
-        onPress: async () => {
-          await signOut()
+    showAlert({
+      title: 'Sign Out',
+      message: 'Are you sure you want to sign out?',
+      type: 'warning',
+      buttons: [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: async () => {
+            await signOut()
+          },
         },
-      },
-    ])
+      ],
+    })
   }
 
   const themeOptions: { key: 'light' | 'dark' | 'system'; label: string; icon: any }[] = [
@@ -50,9 +65,10 @@ export default function SettingsScreen() {
       style={[styles.container, { backgroundColor: colors.background }]}
       edges={['top']}
     >
+      <Animated.View key={focusKey} style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Header */}
-        <View style={styles.header}>
+        <Animated.View entering={FadeInDown.duration(400).springify()} style={styles.header}>
           <TouchableOpacity
             onPress={() => router.back()}
             style={[styles.backButton, { backgroundColor: colors.surface }]}
@@ -61,10 +77,10 @@ export default function SettingsScreen() {
             <ArrowLeft size={20} color={colors.text} />
           </TouchableOpacity>
           <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
-        </View>
+        </Animated.View>
 
         {/* Account Section */}
-        <View style={styles.section}>
+        <Animated.View entering={FadeInDown.delay(100).duration(400).springify()} style={styles.section}>
           <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>
             ACCOUNT
           </Text>
@@ -95,10 +111,10 @@ export default function SettingsScreen() {
               </View>
             </View>
           </View>
-        </View>
+        </Animated.View>
 
         {/* Appearance Section */}
-        <View style={styles.section}>
+        <Animated.View entering={FadeInDown.delay(200).duration(400).springify()} style={styles.section}>
           <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>
             APPEARANCE
           </Text>
@@ -167,10 +183,10 @@ export default function SettingsScreen() {
               )
             })}
           </View>
-        </View>
+        </Animated.View>
 
         {/* About section */}
-        <View style={styles.section}>
+        <Animated.View entering={FadeInDown.delay(300).duration(400).springify()} style={styles.section}>
           <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>
             ABOUT
           </Text>
@@ -192,10 +208,10 @@ export default function SettingsScreen() {
               </Text>
             </View>
           </View>
-        </View>
+        </Animated.View>
 
         {/* Sign Out */}
-        <View style={styles.section}>
+        <Animated.View entering={FadeInDown.delay(400).duration(400).springify()} style={styles.section}>
           <TouchableOpacity
             style={[
               styles.logoutButton,
@@ -209,8 +225,9 @@ export default function SettingsScreen() {
               Sign Out
             </Text>
           </TouchableOpacity>
-        </View>
+        </Animated.View>
       </ScrollView>
+      </Animated.View>
     </SafeAreaView>
   )
 }

@@ -33,6 +33,8 @@ export default function LoanCard({
       ? { bg: colors.statusCompletedBg, text: colors.statusCompleted }
       : status === 'Overdue'
       ? { bg: colors.statusOverdueBg, text: colors.statusOverdue }
+      : status === 'Credit'
+      ? { bg: colors.primaryBg, text: colors.primary }
       : { bg: colors.statusActiveBg, text: colors.statusActive }
 
   return (

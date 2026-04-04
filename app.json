@@ -7,11 +7,12 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "backgroundColor": "#09090b",
     "scheme": "lendtrack",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0f0f23"
+      "backgroundColor": "#09090b"
     },
     "ios": {
       "supportsTablet": true,
@@ -27,6 +28,7 @@
         "backgroundColor": "#09090b",
         "barStyle": "light-content"
       },
+      "backgroundColor": "#09090b",
       "package": "com.lendtrack.mobile"
     },
     "web": {

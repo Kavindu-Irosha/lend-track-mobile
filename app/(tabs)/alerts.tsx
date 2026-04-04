@@ -8,6 +8,7 @@ import {
   RefreshControl,
   Linking,
 } from 'react-native'
+import Animated, { FadeInDown } from 'react-native-reanimated'
 import { useFocusEffect, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTheme } from '@/src/context/ThemeContext'
@@ -23,6 +24,7 @@ import {
   CreditCard,
 } from 'lucide-react-native'
 import { format, differenceInDays } from 'date-fns'
+import { getWhatsAppReminder } from '@/src/lib/financial'
 
 export default function AlertsScreen() {
   const { colors } = useTheme()
@@ -30,6 +32,7 @@ export default function AlertsScreen() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [alerts, setAlerts] = useState<any[]>([])
+  const [focusKey, setFocusKey] = useState(0)
 
   const fetchAlerts = useCallback(async () => {
     try {
@@ -102,19 +105,22 @@ export default function AlertsScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchAlerts()
+      setFocusKey(prev => prev + 1)
     }, [fetchAlerts])
   )
 
   const sendWhatsAppReminder = (
     phone: string | null,
     name: string,
-    amount: number
+    amount: number,
+    dueDate: string,
+    isOverdue: boolean,
+    penalty: number = 0
   ) => {
     if (!phone) return
     const cleanPhone = phone.replace(/\D/g, '')
-    const formattedAmount = formatCurrency(amount)
     const message = encodeURIComponent(
-      `Hello ${name}, this is a gentle reminder regarding your pending loan installment of ${formattedAmount}. Please make the payment at your earliest convenience.`
+      getWhatsAppReminder(name, amount, dueDate, isOverdue, penalty)
     )
     Linking.openURL(`https://wa.me/${cleanPhone}?text=${message}`)
   }
@@ -126,117 +132,125 @@ export default function AlertsScreen() {
       style={[styles.container, { backgroundColor: colors.background }]}
       edges={['top']}
     >
-      <View style={styles.header}>
+      <Animated.View key={focusKey} style={{ flex: 1 }}>
+      <Animated.View entering={FadeInDown.duration(400).springify()} style={styles.header}>
         <Text style={[styles.title, { color: colors.text }]}>Active Alerts</Text>
-      </View>
+      </Animated.View>
 
-      <FlatList
-        data={alerts}
-        keyExtractor={(item) => item.id}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => {
-              setRefreshing(true)
-              fetchAlerts()
-            }}
-            tintColor={colors.primary}
-          />
-        }
-        contentContainerStyle={
-          alerts.length === 0 ? styles.emptyContent : styles.listContent
-        }
-        ListEmptyComponent={
-          <EmptyState
-            icon={AlertCircle}
-            title="No active alerts"
-            description="Everything is on track! All active loans are currently within their payment terms."
-          />
-        }
-        renderItem={({ item }) => {
-          const isOverdue = item.type === 'overdue'
-          const bgColor = isOverdue ? colors.statusOverdueBg : colors.warningBg
-          const iconColor = isOverdue ? colors.statusOverdue : colors.warning
-          const IconComponent = isOverdue ? AlertTriangle : Clock
+      <Animated.View entering={FadeInDown.delay(100).duration(400).springify()} style={{ flex: 1 }}>
+        <FlatList
+          data={alerts}
+          keyExtractor={(item) => item.id}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                setRefreshing(true)
+                fetchAlerts()
+              }}
+              tintColor={colors.primary}
+            />
+          }
+          contentContainerStyle={
+            alerts.length === 0 ? styles.emptyContent : styles.listContent
+          }
+          ListEmptyComponent={
+            <EmptyState
+              icon={AlertCircle}
+              title="No active alerts"
+              description="Everything is on track! All active loans are currently within their payment terms."
+            />
+          }
+          renderItem={({ item }) => {
+            const isOverdue = item.type === 'overdue'
+            const bgColor = isOverdue ? colors.errorBg : colors.warningBg
+            const iconColor = isOverdue ? colors.error : colors.warning
+            const IconComponent = isOverdue ? AlertTriangle : Clock
+            const dueDateFormatted = format(new Date(item.due_date), 'MMM dd, yyyy')
 
-          return (
-            <View
-              style={[
-                styles.alertCard,
-                { backgroundColor: bgColor, borderColor: colors.cardBorder },
-              ]}
-            >
-              <View style={styles.alertTop}>
-                <View
-                  style={[
-                    styles.alertIconContainer,
-                    {
-                      backgroundColor: isOverdue
-                        ? 'rgba(239,68,68,0.15)'
-                        : 'rgba(245,158,11,0.15)',
-                    },
-                  ]}
-                >
-                  <IconComponent size={22} color={iconColor} />
+            return (
+              <View
+                style={[
+                  styles.alertCard,
+                  { backgroundColor: bgColor, borderColor: colors.cardBorder },
+                ]}
+              >
+                <View style={styles.alertTop}>
+                  <View
+                    style={[
+                      styles.alertIconContainer,
+                      {
+                        backgroundColor: isOverdue
+                          ? 'rgba(239,68,68,0.15)'
+                          : 'rgba(245,158,11,0.15)',
+                      },
+                    ]}
+                  >
+                    <IconComponent size={22} color={iconColor} />
+                  </View>
+                  <View style={styles.alertInfo}>
+                    <TouchableOpacity
+                      onPress={() =>
+                        router.push(`/(tabs)/customers/${item.customerId}`)
+                      }
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.alertName, { color: colors.text }]}>
+                        {item.customerName}
+                      </Text>
+                    </TouchableOpacity>
+                    <Text style={[styles.alertDetail, { color: colors.textSecondary }]}>
+                      {isOverdue
+                        ? `Overdue by ${item.days} days (Due: ${format(new Date(item.due_date), 'MMM d')})`
+                        : 'Due today'}
+                    </Text>
+                    <Text style={[styles.alertAmount, { color: colors.text }]}>
+                      Pending: {formatCurrency(item.remaining)}
+                    </Text>
+                  </View>
                 </View>
-                <View style={styles.alertInfo}>
+
+                <View style={styles.alertActions}>
+                  {item.customerPhone && (
+                    <TouchableOpacity
+                      style={[styles.reminderButton, { backgroundColor: colors.successBg }]}
+                      onPress={() =>
+                        sendWhatsAppReminder(
+                          item.customerPhone,
+                          item.customerName,
+                          item.remaining,
+                          dueDateFormatted,
+                          isOverdue,
+                          item.penalty_fee || 0
+                        )
+                      }
+                      activeOpacity={0.7}
+                    >
+                      <MessageCircle size={14} color={colors.success} />
+                      <Text style={[styles.reminderText, { color: colors.success }]}>
+                        Reminder
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                   <TouchableOpacity
+                    style={[styles.paymentButton, { backgroundColor: colors.primaryBg }]}
                     onPress={() =>
-                      router.push(`/(tabs)/customers/${item.customerId}`)
+                      router.push(`/(tabs)/payments/new?loan_id=${item.id}`)
                     }
                     activeOpacity={0.7}
                   >
-                    <Text style={[styles.alertName, { color: colors.text }]}>
-                      {item.customerName}
+                    <CreditCard size={14} color={colors.primary} />
+                    <Text style={[styles.paymentText, { color: colors.primary }]}>
+                      Record Payment
                     </Text>
                   </TouchableOpacity>
-                  <Text style={[styles.alertDetail, { color: colors.textSecondary }]}>
-                    {isOverdue
-                      ? `Overdue by ${item.days} days (Due: ${format(new Date(item.due_date), 'MMM d')})`
-                      : 'Due today'}
-                  </Text>
-                  <Text style={[styles.alertAmount, { color: colors.text }]}>
-                    Pending: {formatCurrency(item.remaining)}
-                  </Text>
                 </View>
               </View>
-
-              <View style={styles.alertActions}>
-                {item.customerPhone && (
-                  <TouchableOpacity
-                    style={[styles.reminderButton, { backgroundColor: colors.successBg }]}
-                    onPress={() =>
-                      sendWhatsAppReminder(
-                        item.customerPhone,
-                        item.customerName,
-                        item.remaining
-                      )
-                    }
-                    activeOpacity={0.7}
-                  >
-                    <MessageCircle size={14} color={colors.success} />
-                    <Text style={[styles.reminderText, { color: colors.success }]}>
-                      Reminder
-                    </Text>
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity
-                  style={[styles.paymentButton, { backgroundColor: colors.primaryBg }]}
-                  onPress={() =>
-                    router.push(`/(tabs)/payments/new?loan_id=${item.id}`)
-                  }
-                  activeOpacity={0.7}
-                >
-                  <CreditCard size={14} color={colors.primary} />
-                  <Text style={[styles.paymentText, { color: colors.primary }]}>
-                    Record Payment
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )
-        }}
-      />
+            )
+          }}
+        />
+      </Animated.View>
+      </Animated.View>
     </SafeAreaView>
   )
 }

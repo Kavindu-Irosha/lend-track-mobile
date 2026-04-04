@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import {
   View,
   Text,
@@ -10,44 +10,62 @@ import {
   Modal,
   FlatList,
 } from 'react-native'
+import Animated, { FadeInDown } from 'react-native-reanimated'
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTheme } from '@/src/context/ThemeContext'
 import { useAuth } from '@/src/context/AuthContext'
 import { supabase } from '@/src/lib/supabase'
 import FormInput from '@/src/components/FormInput'
-import { ArrowLeft, ChevronDown, Check } from 'lucide-react-native'
+import { ArrowLeft, ChevronDown, Check, Calendar as CalendarIcon } from 'lucide-react-native'
 import { format } from 'date-fns'
 import { formatCurrency } from '@/src/lib/utils'
 import * as Haptics from 'expo-haptics'
+import { useAlert } from '@/src/context/AlertContext'
+import DateTimePicker from '@react-native-community/datetimepicker'
 
 interface ProcessedLoan {
   id: string
   customerName: string
   remaining: number
   total: number
+  installmentAmount: number
+  startDate: string
 }
 
 export default function NewPaymentScreen() {
   const { loan_id } = useLocalSearchParams<{ loan_id?: string }>()
   const { colors } = useTheme()
   const { user } = useAuth()
+  const { showAlert } = useAlert()
   const router = useRouter()
 
   const [loans, setLoans] = useState<ProcessedLoan[]>([])
   const [selectedLoanId, setSelectedLoanId] = useState(loan_id || '')
   const [amount, setAmount] = useState('')
-  const [paymentDate, setPaymentDate] = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [paymentDate, setPaymentDate] = useState(new Date())
+  const [paymentMethod, setPaymentMethod] = useState('cash')
+  const [referenceId, setReferenceId] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [showLoanPicker, setShowLoanPicker] = useState(false)
+  const [showDatePicker, setShowDatePicker] = useState(false)
+  const [showMethodPicker, setShowMethodPicker] = useState(false)
+
+  const paymentMethods = ['cash', 'bank_transfer', 'ez_cash', 'other']
+
+  // Auto-generate reference ID on mount
+  useEffect(() => {
+    const randomId = Math.random().toString(36).substring(2, 9).toUpperCase()
+    setReferenceId(`REF-${randomId}`)
+  }, [])
 
   useFocusEffect(
     useCallback(() => {
       async function fetchLoans() {
         const { data } = await supabase
           .from('loans')
-          .select('id, amount, interest, customers(name), payments(amount)')
+          .select('id, amount, interest, installment_type, start_date, customers(name), payments(amount)')
           .order('created_at', { ascending: false })
 
         const processed = (data || []).map((loan) => {
@@ -57,26 +75,89 @@ export default function NewPaymentScreen() {
           ) || 0
           const remaining = loanTotal - paid
 
+          // Estimate installment for auto-fill (can be improved with business logic)
+          // For now, let's assume a default installment divisor if not fully tracked
+          const divisor = loan.installment_type === 'daily' ? 30 : (loan.installment_type === 'weekly' ? 4 : 1)
+          const installmentAmount = Math.min(remaining, Math.ceil(loanTotal / divisor))
+
           return {
             id: loan.id,
             customerName: (loan.customers as any)?.name || 'Unknown',
             remaining,
             total: loanTotal,
+            installmentAmount,
+            startDate: loan.start_date
           }
         }).filter((loan) => loan.remaining > 0 || loan.id === loan_id)
 
         setLoans(processed)
+        
+        if (processed.length === 0) {
+          showAlert({
+            title: 'No Active Loans',
+            message: 'There are no active loans to record a payment for.',
+            type: 'warning'
+          })
+          router.back()
+          return
+        }
+
         if (loan_id) setSelectedLoanId(loan_id)
       }
       fetchLoans()
-    }, [loan_id])
+    }, [loan_id, showAlert])
   )
+
+  // Auto-fill amount when loan changes
+  useEffect(() => {
+    const loan = loans.find(l => l.id === selectedLoanId)
+    if (loan && !amount) {
+      setAmount(loan.installmentAmount.toString())
+    }
+  }, [selectedLoanId, loans])
 
   const selectedLoan = loans.find((l) => l.id === selectedLoanId)
 
-  const handleSave = async () => {
+  const handleSave = async (forceOverpayment = false) => {
     if (!selectedLoanId || !amount || !paymentDate) {
       setError('Please fill in all required fields')
+      return
+    }
+
+    const amountNum = parseFloat(amount)
+    if (isNaN(amountNum) || amountNum <= 0) {
+      showAlert({
+        title: 'Invalid Amount',
+        message: 'The payment amount must be greater than zero.',
+        type: 'warning'
+      })
+      return
+    }
+
+    if (selectedLoan && new Date(paymentDate) < new Date(selectedLoan.startDate)) {
+      showAlert({
+        title: 'Invalid Date',
+        message: `The payment date cannot be before the loan's start date (${format(new Date(selectedLoan.startDate), 'MMM dd, yyyy')}).`,
+        type: 'warning'
+      })
+      return
+    }
+
+    if (selectedLoan && amountNum > selectedLoan.remaining && !forceOverpayment) {
+      const overpaid = amountNum - selectedLoan.remaining
+      showAlert({
+        title: 'Over-payment Detected',
+        message: `This payment exceeds the remaining balance by Rs. ${overpaid.toLocaleString()}. This will be applied as a credit to future loan installments. Continue?`,
+        type: 'warning',
+        buttons: [
+          { text: 'Adjust Amount', style: 'cancel' },
+          { 
+            text: 'Save as Credit', 
+            style: 'default',
+            onPress: () => handleSave(true) 
+          }
+        ]
+      })
       return
     }
 
@@ -88,7 +169,9 @@ export default function NewPaymentScreen() {
         user_id: user?.id,
         loan_id: selectedLoanId,
         amount: parseFloat(amount),
-        payment_date: paymentDate,
+        payment_date: format(paymentDate, 'yyyy-MM-dd'),
+        payment_method: paymentMethod,
+        reference_id: referenceId.trim() || null,
       })
 
       if (dbError) {
@@ -107,10 +190,14 @@ export default function NewPaymentScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }} 
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+      >
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           {/* Header */}
-          <View style={styles.header}>
+          <Animated.View entering={FadeInDown.duration(400).springify()} style={styles.header}>
             <TouchableOpacity
               onPress={() => router.back()}
               style={[styles.backButton, { backgroundColor: colors.surface }]}
@@ -119,9 +206,9 @@ export default function NewPaymentScreen() {
               <ArrowLeft size={20} color={colors.text} />
             </TouchableOpacity>
             <Text style={[styles.title, { color: colors.text }]}>Record Payment</Text>
-          </View>
+          </Animated.View>
 
-          <View style={[styles.formCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          <Animated.View entering={FadeInDown.delay(100).duration(400).springify()} style={[styles.formCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
             {/* Custom Loan Picker */}
             <View style={styles.fieldGroup}>
               <Text style={[styles.label, { color: colors.textSecondary }]}>Loan *</Text>
@@ -154,7 +241,7 @@ export default function NewPaymentScreen() {
             <View style={styles.row}>
               <View style={styles.halfField}>
                 <FormInput
-                  label="Payment Amount (Rs)"
+                  label="Payment Amount (Rs) *"
                   required
                   placeholder="1000"
                   value={amount}
@@ -163,12 +250,49 @@ export default function NewPaymentScreen() {
                 />
               </View>
               <View style={styles.halfField}>
+                <Text style={[styles.label, { color: colors.textSecondary }]}>Payment Date *</Text>
+                <TouchableOpacity
+                  style={[styles.datePickerTrigger, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}
+                  onPress={() => setShowDatePicker(true)}
+                >
+                   <Text style={{ color: colors.text }}>{format(paymentDate, 'MMM dd, yyyy')}</Text>
+                   <CalendarIcon size={16} color={colors.textTertiary} />
+                </TouchableOpacity>
+                {showDatePicker && (
+                  <DateTimePicker
+                    value={paymentDate}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={(event, date) => {
+                      setShowDatePicker(false)
+                      if (date) setPaymentDate(date)
+                    }}
+                  />
+                )}
+              </View>
+            </View>
+
+            <View style={styles.row}>
+              <View style={styles.halfField}>
+                <View style={styles.fieldGroup}>
+                  <Text style={[styles.label, { color: colors.textSecondary }]}>Method *</Text>
+                  <TouchableOpacity
+                    style={[styles.pickerTrigger, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}
+                    onPress={() => setShowMethodPicker(true)}
+                  >
+                    <Text style={{ color: colors.text }}>
+                      {paymentMethod.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                    </Text>
+                    <ChevronDown size={16} color={colors.textTertiary} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+              <View style={styles.halfField}>
                 <FormInput
-                  label="Payment Date"
-                  required
-                  placeholder="YYYY-MM-DD"
-                  value={paymentDate}
-                  onChangeText={setPaymentDate}
+                  label="Reference ID"
+                  placeholder="TxnID0123"
+                  value={referenceId}
+                  onChangeText={setReferenceId}
                 />
               </View>
             </View>
@@ -189,16 +313,49 @@ export default function NewPaymentScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.saveButton, { backgroundColor: colors.primary, opacity: saving ? 0.7 : 1 }]}
-                onPress={handleSave}
+                onPress={() => handleSave()}
                 disabled={saving}
                 activeOpacity={0.8}
               >
                 <Text style={styles.saveText}>{saving ? 'Saving...' : 'Record Payment'}</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Method Picker Modal */}
+      <Modal visible={showMethodPicker} transparent animationType="fade">
+        <TouchableOpacity 
+          style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}
+          activeOpacity={1}
+          onPress={() => setShowMethodPicker(false)}
+        >
+          <View style={[styles.modalContent, { backgroundColor: colors.surface, maxHeight: '40%' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Payment Method</Text>
+            </View>
+            <FlatList
+              data={paymentMethods}
+              keyExtractor={(item) => item}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[styles.modalItem, { borderBottomColor: colors.border }]}
+                  onPress={() => {
+                    setPaymentMethod(item)
+                    setShowMethodPicker(false)
+                  }}
+                >
+                  <Text style={[styles.modalItemTitle, { color: colors.text }]}>
+                    {item.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                  </Text>
+                  {item === paymentMethod && <Check size={20} color={colors.primary} />}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Loan Picker Modal */}
       <Modal visible={showLoanPicker} transparent animationType="slide">
@@ -241,7 +398,7 @@ export default function NewPaymentScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollContent: { padding: 16 },
+  scrollContent: { padding: 16, paddingBottom: 300 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 },
   backButton: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 22, fontWeight: '700' },
@@ -264,6 +421,16 @@ const styles = StyleSheet.create({
   halfField: { flex: 1 },
   errorBox: { padding: 12, borderRadius: 10, marginBottom: 16 },
   errorText: { fontSize: 13, fontWeight: '500' },
+  datePickerTrigger: {
+    height: 48,
+    borderWidth: 1,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    marginBottom: 16,
+  },
   actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 8 },
   cancelButton: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 10, borderWidth: 1 },
   cancelText: { fontSize: 14, fontWeight: '600' },

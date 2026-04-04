@@ -12,12 +12,14 @@ import {
 } from 'react-native'
 import { useAuth } from '@/src/context/AuthContext'
 import { useTheme } from '@/src/context/ThemeContext'
+import { useAlert } from '@/src/context/AlertContext'
 import { useRouter } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 
 export default function LoginScreen() {
   const { signIn, signUp } = useAuth()
   const { colors, isDark } = useTheme()
+  const { showAlert } = useAlert()
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -26,7 +28,11 @@ export default function LoginScreen() {
 
   const handleSubmit = async () => {
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Error', 'Please enter both email and password')
+      showAlert({
+        title: 'Error',
+        message: 'Please enter both email and password',
+        type: 'error'
+      })
       return
     }
 
@@ -37,12 +43,19 @@ export default function LoginScreen() {
         : await signUp(email.trim(), password)
 
       if (error) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
-        Alert.alert('Error', error)
+        showAlert({
+          title: 'Error',
+          message: error,
+          type: 'error'
+        })
       } else {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
         if (mode === 'signup') {
-          Alert.alert('Success', 'Account created! You can now sign in.')
+          showAlert({
+            title: 'Success',
+            message: 'Account created! You can now sign in.',
+            type: 'success'
+          })
+          setMode('signin')
         } else {
           // Explicit redirect on sign in success
           router.replace('/(tabs)/dashboard')
@@ -56,7 +69,7 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: colors.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
         contentContainerStyle={styles.scrollContent}

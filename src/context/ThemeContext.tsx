@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { useColorScheme } from 'react-native'
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSequence } from 'react-native-reanimated'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Colors, ThemeColors } from '@/src/constants/Colors'
 
@@ -42,9 +43,29 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     mode === 'system' ? systemScheme === 'dark' : mode === 'dark'
   const colors = isDark ? Colors.dark : Colors.light
 
+  const anim = useSharedValue(1)
+
+  useEffect(() => {
+    // Subtle zoom-in/out animation on theme change
+    anim.value = withSequence(
+      withTiming(0.98, { duration: 150 }),
+      withTiming(1, { duration: 150 })
+    )
+  }, [isDark])
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      flex: 1,
+      transform: [{ scale: anim.value }],
+      opacity: withTiming(anim.value, { duration: 300 })
+    }
+  })
+
   return (
     <ThemeContext.Provider value={{ mode, isDark, colors, setMode }}>
-      {children}
+      <Animated.View style={animatedStyle}>
+        {children}
+      </Animated.View>
     </ThemeContext.Provider>
   )
 }

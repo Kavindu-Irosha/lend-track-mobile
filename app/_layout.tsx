@@ -6,6 +6,8 @@ import * as NavigationBar from 'expo-navigation-bar'
 import { Platform } from 'react-native'
 import { AuthProvider, useAuth } from '@/src/context/AuthContext'
 import { ThemeProvider, useTheme } from '@/src/context/ThemeContext'
+import { AlertProvider } from '@/src/context/AlertContext'
+import CustomAlert from '@/src/components/CustomAlert'
 import AnimatedSplash from '@/src/components/AnimatedSplash'
 
 // Keep the native splash visible while we load resources
@@ -31,13 +33,12 @@ function RootLayoutNav() {
     }
   }, [authLoading])
 
-  // Sync Navigation Bar on Android
+  // Sync Navigation Bar on Android (Dynamic Icons based on Theme only)
   useEffect(() => {
     if (Platform.OS === 'android') {
-      NavigationBar.setBackgroundColorAsync(colors.background)
       NavigationBar.setButtonStyleAsync(isDark ? 'light' : 'dark')
     }
-  }, [colors.background, isDark])
+  }, [isDark])
 
   // Handle navigation after splash finishes
   useEffect(() => {
@@ -70,6 +71,7 @@ function RootLayoutNav() {
         <Stack.Screen name="(tabs)" />
       </Stack>
       {showSplash && <AnimatedSplash onFinish={handleSplashFinish} />}
+      <CustomAlert />
     </>
   )
 }
@@ -77,9 +79,11 @@ function RootLayoutNav() {
 export default function RootLayout() {
   return (
     <ThemeProvider>
-      <AuthProvider>
-        <RootLayoutNav />
-      </AuthProvider>
+      <AlertProvider>
+        <AuthProvider>
+          <RootLayoutNav />
+        </AuthProvider>
+      </AlertProvider>
     </ThemeProvider>
   )
 }

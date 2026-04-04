@@ -4,17 +4,18 @@ import { useTheme } from '@/src/context/ThemeContext'
 import { LucideIcon } from 'lucide-react-native'
 
 interface StatsCardProps {
-  icon: LucideIcon
+  icon: any
   label: string
   value: string
   color?: string
+  containerStyle?: any
 }
 
-export default function StatsCard({ icon: Icon, label, value, color }: StatsCardProps) {
+export default function StatsCard({ icon: Icon, label, value, color, containerStyle }: StatsCardProps) {
   const { colors } = useTheme()
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.cardBorder }, containerStyle]}>
       <View style={[styles.iconContainer, { backgroundColor: colors.primaryBg }]}>
         <Icon size={22} color={color || colors.primary} />
       </View>

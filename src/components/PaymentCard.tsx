@@ -2,7 +2,7 @@ import React from 'react'
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
 import { useTheme } from '@/src/context/ThemeContext'
 import { formatCurrency } from '@/src/lib/utils'
-import { Calendar, User, Receipt } from 'lucide-react-native'
+import { Calendar, User, Receipt, Trash2 } from 'lucide-react-native'
 import { format } from 'date-fns'
 
 interface PaymentCardProps {
@@ -10,6 +10,7 @@ interface PaymentCardProps {
   customerName: string
   paymentDate: string
   onPress?: () => void
+  onDelete?: () => void
 }
 
 export default function PaymentCard({
@@ -17,6 +18,7 @@ export default function PaymentCard({
   customerName,
   paymentDate,
   onPress,
+  onDelete,
 }: PaymentCardProps) {
   const { colors } = useTheme()
 
@@ -41,11 +43,22 @@ export default function PaymentCard({
           </Text>
         </View>
       </View>
-      <View style={styles.dateContainer}>
-        <Calendar size={14} color={colors.textTertiary} />
-        <Text style={[styles.dateText, { color: colors.textSecondary }]}>
-          {format(new Date(paymentDate), 'MMM d, yyyy')}
-        </Text>
+      <View style={styles.rightContainer}>
+        <View style={styles.dateContainer}>
+          <Calendar size={14} color={colors.textTertiary} />
+          <Text style={[styles.dateText, { color: colors.textSecondary }]}>
+            {format(new Date(paymentDate), 'MMM d, yyyy')}
+          </Text>
+        </View>
+        {onDelete && (
+          <TouchableOpacity 
+            onPress={onDelete} 
+            style={[styles.deleteBtn, { backgroundColor: colors.errorBg }]}
+            activeOpacity={0.7}
+          >
+            <Trash2 size={16} color={colors.error} />
+          </TouchableOpacity>
+        )}
       </View>
     </TouchableOpacity>
   )
@@ -83,6 +96,10 @@ const styles = StyleSheet.create({
   metaText: {
     fontSize: 12,
   },
+  rightContainer: {
+    alignItems: 'flex-end',
+    gap: 6,
+  },
   dateContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -90,5 +107,12 @@ const styles = StyleSheet.create({
   },
   dateText: {
     fontSize: 13,
+  },
+  deleteBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 })
