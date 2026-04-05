@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useState, useEffect } from 'react'
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native'
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated'
 import { useFocusEffect, useRouter } from 'expo-router'
@@ -26,8 +27,10 @@ import {
   Settings, 
   ChevronRight, 
   Calculator,
-  CheckCircle2
+  CheckCircle2,
+  Calendar as CalendarIcon
 } from 'lucide-react-native'
+import * as Haptics from 'expo-haptics'
 import { format } from 'date-fns'
 import { LineChart } from 'react-native-chart-kit'
 
@@ -53,71 +56,98 @@ export default function DashboardScreen() {
   const [activeLoanCount, setActiveLoanCount] = useState(0)
   const [recentPayments, setRecentPayments] = useState<any[]>([])
   const [topPending, setTopPending] = useState<any[]>([])
-  const [chartData, setChartData] = useState<{ labels: string[]; data: number[] }>({ 
-    labels: ['Day 1', 'Day 5', 'Day 10', 'Day 15', 'Day 20', 'Day 25', 'Day 30'], 
-    data: [0, 0, 0, 0, 0, 0, 0] 
+  const [chartData, setChartData] = useState<{ labels: string[]; inData: number[]; outData: number[] }>({ 
+    labels: ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'], 
+    inData: [0, 0, 0, 0, 0, 0, 0],
+    outData: [0, 0, 0, 0, 0, 0, 0]
   })
   const [isChartEmpty, setIsChartEmpty] = useState(true)
+  const [timeRange, setTimeRange] = useState<'7d' | '1m' | '3m' | '6m'>('1m')
+  const [selectedPoint, setSelectedPoint] = useState<{ label: string; in: number; out: number } | null>(null)
+  const [chartLoading, setChartLoading] = useState(false)
 
-  const fetchData = useCallback(async () => {
+  const fetchChartData = useCallback(async (range: '7d' | '1m' | '3m' | '6m', isSilent = false) => {
+    if (!isSilent) setChartLoading(true)
     try {
-      // Fetch loans with payments and customers
-      const { data: loans } = await supabase
-        .from('loans')
-        .select('*, payments(amount), customers(id, name)')
+      const rangeDays = range === '7d' ? 7 : range === '1m' ? 30 : range === '3m' ? 90 : 180
+      const startDate = new Date()
+      startDate.setDate(startDate.getDate() - (rangeDays - 1))
+      const startDateStr = startDate.toISOString().split('T')[0]
 
-      // Fetch recent payments
-      const { data: payments } = await supabase
-        .from('payments')
-        .select('*, loans(id, customers(id, name))')
-        .order('payment_date', { ascending: false })
-        .order('created_at', { ascending: false })
-        .limit(5)
+      const [paymentsRes, loansRes] = await Promise.all([
+        supabase.from('payments').select('amount, payment_date').gte('payment_date', startDateStr),
+        supabase.from('loans').select('amount, start_date').gte('start_date', startDateStr)
+      ])
 
-      // Fetch chart data (last 30 days)
-      const thirtyDaysAgo = new Date()
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29)
-      const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0]
+      const inMap: Record<string, number> = {}
+      const outMap: Record<string, number> = {}
 
-      const { data: chartPayments } = await supabase
-        .from('payments')
-        .select('amount, payment_date')
-        .gte('payment_date', thirtyDaysAgoStr)
-
-      // Build chart data (show 7 markers for mobile readability)
-      const last30DaysMap: Record<string, number> = {}
-      for (let i = 29; i >= 0; i--) {
+      for (let i = rangeDays - 1; i >= 0; i--) {
         const d = new Date()
         d.setDate(d.getDate() - i)
-        const formattedDate = format(d, 'MMM dd')
-        last30DaysMap[formattedDate] = 0
+        const formattedDate = format(d, rangeDays <= 30 ? 'MMM dd' : 'MM/dd')
+        inMap[formattedDate] = 0
+        outMap[formattedDate] = 0
       }
 
-      if (chartPayments) {
-        chartPayments.forEach((p) => {
+      if (paymentsRes.data) {
+        paymentsRes.data.forEach((p) => {
           const d = new Date(p.payment_date)
-          const label = format(d, 'MMM dd')
-          if (last30DaysMap[label] !== undefined) {
-            last30DaysMap[label] += Number(p.amount)
-          }
+          const label = format(d, rangeDays <= 30 ? 'MMM dd' : 'MM/dd')
+          if (inMap[label] !== undefined) inMap[label] += Number(p.amount)
         })
       }
 
-      const allLabels = Object.keys(last30DaysMap)
-      const allData = Object.values(last30DaysMap)
-      const hasAnyData = allData.some(v => v > 0)
+      if (loansRes.data) {
+        loansRes.data.forEach((l) => {
+          const d = new Date(l.start_date)
+          const label = format(d, rangeDays <= 30 ? 'MMM dd' : 'MM/dd')
+          if (outMap[label] !== undefined) outMap[label] += Number(l.amount)
+        })
+      }
+
+      const allLabels = Object.keys(inMap)
+      const inValues = Object.values(inMap)
+      const outValues = Object.values(outMap)
+      const hasAnyData = inValues.some(v => v > 0) || outValues.some(v => v > 0)
       
-      // Show every 7th label for mobile
-      const displayLabels = allLabels.map((l, i) => (i % 7 === 0 ? l : ''))
+      const labelStep = rangeDays <= 7 ? 1 : rangeDays <= 30 ? 5 : rangeDays <= 90 ? 15 : 30
+      const displayLabels = allLabels.map((l, i) => (i % labelStep === 0 ? l : ''))
 
       if (hasAnyData) {
-        setChartData({ labels: displayLabels, data: allData })
+        setChartData({ labels: displayLabels, inData: inValues, outData: outValues })
         setIsChartEmpty(false)
       } else {
-        // Keep dummy labels but 0 data
-        setChartData({ labels: displayLabels, data: allData.length > 0 ? allData : [0, 0, 0, 0, 0, 0, 0] })
+        setChartData({ 
+          labels: displayLabels, 
+          inData: inValues.length > 0 ? inValues : [0, 0, 0, 0, 0, 0, 0],
+          outData: outValues.length > 0 ? outValues : [0, 0, 0, 0, 0, 0, 0]
+        })
         setIsChartEmpty(true)
       }
+    } catch (err) {
+      console.error('Chart fetch error:', err)
+    } finally {
+      if (!isSilent) setChartLoading(false)
+    }
+  }, [])
+
+  const fetchData = useCallback(async (isInitial = true) => {
+    if (isInitial) setLoading(true)
+    try {
+      // Fetch core dependencies in parallel
+      const [loansResponse, paymentsResponse, customersResponse] = await Promise.all([
+        supabase.from('loans').select('*, payments(amount), customers(id, name)'),
+        supabase.from('payments').select('*, loans(id, customers(id, name))').order('payment_date', { ascending: false }).order('created_at', { ascending: false }).limit(5),
+        supabase.from('customers').select('*', { count: 'exact', head: true })
+      ])
+
+      const loans = loansResponse.data
+      const payments = paymentsResponse.data
+      const customerCount = customersResponse.count || 0
+
+      // Calculate chart data silently (part of full fetch)
+      fetchChartData(timeRange, true)
 
       // Calculate stats
       let totalGiven = 0
@@ -166,24 +196,30 @@ export default function DashboardScreen() {
       setRecentPayments(payments || [])
       setTopPending(pendingList.slice(0, 5))
       setActiveLoanCount(pendingList.length)
-
-      // Fetch customer count
-      const { count } = await supabase.from('customers').select('*', { count: 'exact', head: true })
-      setCustomerCount(count || 0)
+      setCustomerCount(customerCount)
     } catch (err) {
       console.error('Dashboard fetch error:', err)
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [])
+  }, [fetchChartData])
 
   useFocusEffect(
     useCallback(() => {
-      fetchData()
-      setFocusKey(prev => prev + 1)
+      let isMounted = true
+      if (isMounted) {
+        fetchData(true)
+        setFocusKey(prev => prev + 1)
+      }
+      return () => { isMounted = false }
     }, [fetchData])
   )
+
+  // Sub-effect: Only update chart when timeRange changes
+  useEffect(() => {
+    fetchChartData(timeRange)
+  }, [timeRange, fetchChartData])
 
   const onRefresh = () => {
     setRefreshing(true)
@@ -208,7 +244,10 @@ export default function DashboardScreen() {
           </View>
           <TouchableOpacity
             style={[styles.settingsButton, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
-            onPress={() => router.push('/(tabs)/settings')}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+              router.push('/(tabs)/settings')
+            }}
             activeOpacity={0.7}
           >
             <Settings size={20} color={colors.textSecondary} />
@@ -220,6 +259,7 @@ export default function DashboardScreen() {
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: colors.primary }]}
             onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
               if (customerCount === 0) {
                 showAlert({
                   title: 'No Customers',
@@ -236,8 +276,9 @@ export default function DashboardScreen() {
             <Text style={styles.actionButtonText}>Issue Loan</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}
+            style={[styles.actionButton, { backgroundColor: colors.surface, borderColor: colors.cardBorder, borderWidth: 1 }]}
             onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
               if (activeLoanCount === 0) {
                 showAlert({
                   title: 'No Active Loans',
@@ -255,83 +296,189 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         </Animated.View>
 
-        {/* Stats */}
-        <Animated.View entering={FadeInDown.delay(200).duration(400).springify()} style={styles.statsGrid}>
-          <View style={styles.statsRow}>
+        {/* Stats Section Redesign */}
+        <Animated.View entering={FadeInDown.delay(200).duration(400).springify()} style={styles.statsSection}>
+          <StatsCard 
+            variant="featured"
+            icon={CreditCard} 
+            label="Total Investment" 
+            value={formatCurrency(stats.principalDisbursed)} 
+            description={`Expected Profit: ${formatCurrency(stats.expectedProfit)}`}
+            containerStyle={{ marginBottom: 12 }}
+          />
+          <View style={styles.statsGridRow}>
             <StatsCard 
-              icon={CreditCard} 
-              label="Investment" 
-              value={formatCurrency(stats.principalDisbursed)} 
+              icon={Receipt} 
+              label="Collected" 
+              value={formatCurrency(stats.totalCollected)} 
+              color={colors.success}
               containerStyle={{ flex: 1 }}
             />
             <StatsCard 
-              icon={Calculator} 
-              label="Expected Profit" 
-              value={formatCurrency(stats.expectedProfit)} 
-              color={colors.primary}
+              icon={AlertCircle} 
+              label={stats.totalCredits > 0 ? "Pending" : "Outstanding"}
+              value={formatCurrency(stats.totalPending)} 
+              color={colors.warning}
               containerStyle={{ flex: 1 }}
             />
           </View>
-          <StatsCard icon={Receipt} label="Total Collected" value={formatCurrency(stats.totalCollected)} color={colors.success} />
-          {stats.totalCredits > 0 ? (
-            <View style={styles.statsRow}>
-              <View style={{ flex: 1 }}>
-                <StatsCard icon={AlertCircle} label="Outstanding" value={formatCurrency(stats.totalPending)} color={colors.warning} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <StatsCard icon={CheckCircle2} label="Customer Credits" value={formatCurrency(stats.totalCredits)} color={colors.primary} />
-              </View>
-            </View>
-          ) : (
-            <StatsCard icon={AlertCircle} label="Total Outstanding" value={formatCurrency(stats.totalPending)} color={colors.warning} />
+          {stats.totalCredits > 0 && (
+            <StatsCard 
+              icon={CheckCircle2} 
+              label="Customer Credits" 
+              value={formatCurrency(stats.totalCredits)} 
+              color={colors.primary}
+              containerStyle={{ marginTop: 12 }}
+            />
           )}
         </Animated.View>
 
-        {/* Chart */}
         <Animated.View 
           entering={FadeInDown.delay(300).duration(400).springify()}
           style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
         >
           <View style={styles.sectionHeader}>
-             <Text style={[styles.sectionTitle, { color: colors.text }]}>
-               Collections (Last 30 Days)
-             </Text>
+             <View>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                Cash Flow Analysis
+              </Text>
+              {selectedPoint ? (
+                <View style={styles.watcherRow}>
+                  <Text style={[styles.pointWatcherValue, { color: colors.primary }]}>
+                    In: <Text style={{ color: colors.text }}>{formatCurrency(selectedPoint.in)}</Text>
+                  </Text>
+                  <View style={[styles.vertDivider, { backgroundColor: colors.cardBorder }]} />
+                  <Text style={[styles.pointWatcherValue, { color: '#ef4444' }]}>
+                    Out: <Text style={{ color: colors.text }}>{formatCurrency(selectedPoint.out)}</Text>
+                  </Text>
+                </View>
+              ) : (
+                <Text style={styles.watcherSub}>Returns (In) vs Investments (Out)</Text>
+              )}
+             </View>
              {isChartEmpty && (
-               <View style={[styles.emptyBadge, { backgroundColor: colors.warningBg }]}>
-                 <Text style={[styles.emptyBadgeText, { color: colors.warning }]}>Waiting for data</Text>
+               <View style={[styles.emptyBadge, { backgroundColor: colors.primaryBg }]}>
+                 <Text style={[styles.emptyBadgeText, { color: colors.primary }]}>Live Tracking</Text>
                </View>
              )}
           </View>
-          {chartData.data.length > 0 && (
-            <LineChart
-              data={{
-                labels: chartData.labels,
-                datasets: [{ data: chartData.data }],
-              }}
-              width={screenWidth - 64}
-              height={200}
-              withInnerLines={false}
-              withOuterLines={false}
-              withDots={false}
-              chartConfig={{
-                backgroundColor: 'transparent',
-                backgroundGradientFrom: colors.surface,
-                backgroundGradientTo: colors.surface,
-                decimalPlaces: 0,
-                color: () => isChartEmpty ? colors.textTertiary : colors.primary,
-                labelColor: () => colors.textTertiary,
-                propsForLabels: {
-                  fontSize: 10,
-                },
-                fillShadowGradientFrom: isChartEmpty ? colors.textTertiary : colors.primary,
-                fillShadowGradientTo: 'transparent',
-                fillShadowGradientFromOpacity: 0.1,
-                fillShadowGradientToOpacity: 0,
-              }}
-              bezier
-              style={styles.chart}
-            />
-          )}
+
+          {/* Time Range Selector & Legend */}
+          <View style={styles.topFilterBar}>
+            <View style={styles.rangeSelector}>
+              {[
+                { id: '7d', label: '7D' },
+                { id: '1m', label: '1M' },
+                { id: '3m', label: '3M' },
+                { id: '6m', label: '6M' }
+              ].map((range) => (
+                <TouchableOpacity
+                  key={range.id}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+                    setTimeRange(range.id as any)
+                  }}
+                  style={[
+                    styles.rangeBtn,
+                    timeRange === range.id && { backgroundColor: colors.primary }
+                  ]}
+                >
+                  <Text style={[
+                    styles.rangeBtnText,
+                    { color: timeRange === range.id ? '#fff' : colors.textTertiary }
+                  ]}>
+                    {range.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <View style={styles.chartLegend}>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: '#10b981' }]} />
+                <Text style={[styles.legendText, { color: colors.textTertiary }]}>Returns</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: '#ef4444' }]} />
+                <Text style={[styles.legendText, { color: colors.textTertiary }]}>Investments</Text>
+              </View>
+            </View>
+          </View>
+          
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.chartWrapper}
+            scrollEventThrottle={16}
+          >
+            <View style={[styles.chartContainer, chartLoading && { opacity: 0.5 }]}>
+              {isChartEmpty && !chartLoading && (
+                <View style={[styles.chartOverlay, { width: screenWidth - 64 }]}>
+                  <CalendarIcon size={32} color={colors.textTertiary} style={{ opacity: 0.2 }} />
+                  <Text style={[styles.chartOverlayText, { color: colors.textTertiary }]}>No movement found</Text>
+                </View>
+              )}
+              {chartLoading && (
+                <View style={[styles.chartOverlay, { width: screenWidth - 64, backgroundColor: 'transparent' }]}>
+                  <ActivityIndicator color={colors.primary} />
+                </View>
+              )}
+              <LineChart
+                data={{
+                  labels: chartData.labels,
+                  datasets: [
+                    { 
+                      data: isChartEmpty ? [10, 25, 45, 30, 55, 40, 60] : chartData.inData,
+                      color: (opacity = 1) => `#10b981`, // Green for Money In
+                      strokeWidth: 2
+                    },
+                    { 
+                      data: isChartEmpty ? [60, 40, 55, 30, 45, 25, 10] : chartData.outData,
+                      color: (opacity = 1) => `#ef4444`, // Red for Money Out
+                      strokeWidth: 2
+                    }
+                  ],
+                }}
+                width={Math.max(screenWidth - 64, chartData.inData.length * (timeRange === '7d' ? 45 : 35))}
+                height={180}
+                withInnerLines={false}
+                withOuterLines={false}
+                withDots={!isChartEmpty}
+                chartConfig={{
+                  backgroundColor: 'transparent',
+                  backgroundGradientFrom: colors.surface,
+                  backgroundGradientTo: colors.surface,
+                  decimalPlaces: 0,
+                  color: (opacity = 1) => colors.primary,
+                  labelColor: () => colors.textTertiary,
+                  propsForLabels: {
+                    fontSize: 10,
+                  },
+                  fillShadowGradientFrom: colors.primary,
+                  fillShadowGradientTo: 'transparent',
+                  fillShadowGradientFromOpacity: isChartEmpty ? 0.02 : 0.1,
+                  fillShadowGradientToOpacity: 0,
+                  propsForDots: {
+                    r: "4",
+                    strokeWidth: "0",
+                  }
+                }}
+                bezier
+                onDataPointClick={({ value, index }) => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+                  setSelectedPoint({
+                    label: Object.keys(chartData.labels).length > 0 ? chartData.labels[index] || "Date" : "Date",
+                    in: chartData.inData[index] || 0,
+                    out: chartData.outData[index] || 0
+                  })
+                }}
+                style={styles.chart}
+              />
+            </View>
+          </ScrollView>
+          <Text style={[styles.panHint, { color: colors.textTertiary }]}>
+            {timeRange !== '7d' ? "← Swipe left/right to move →" : "Watch your daily collection trends"}
+          </Text>
         </Animated.View>
 
         {/* Recent Payments */}
@@ -392,7 +539,7 @@ export default function DashboardScreen() {
               <TouchableOpacity
                 key={loan.id}
                 style={[styles.listItem, { borderBottomColor: colors.border }]}
-                onPress={() => router.push(`/(tabs)/customers/${loan.customerId}`)}
+                onPress={() => router.push(`/(tabs)/customers/${loan.customerId}?name=${encodeURIComponent(loan.customerName)}`)}
                 activeOpacity={0.7}
               >
                 <View style={styles.listItemContent}>
@@ -427,13 +574,22 @@ const styles = StyleSheet.create({
   quickActions: { flexDirection: 'row', gap: 12, marginBottom: 20 },
   actionButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 13, borderRadius: 12, gap: 8 },
   actionButtonText: { color: '#fff', fontWeight: '600', fontSize: 14 },
-  statsGrid: { gap: 12, marginBottom: 20 },
-  statsRow: { flexDirection: 'row', gap: 12 },
+  statsSection: { marginBottom: 20 },
+  statsGridRow: { flexDirection: 'row', gap: 12 },
   section: { borderRadius: 16, padding: 16, borderWidth: 1, marginBottom: 16 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   sectionTitle: { fontSize: 16, fontWeight: '700' },
   viewAll: { fontSize: 13, fontWeight: '600' },
-  chart: { marginTop: 8, borderRadius: 12, marginLeft: -16 },
+  chartContainer: { position: 'relative' },
+  chartOverlay: { 
+    ...StyleSheet.absoluteFillObject, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    zIndex: 1,
+    gap: 8,
+  },
+  chartOverlayText: { fontSize: 12, fontWeight: '600', opacity: 0.6 },
+  chart: { marginTop: 4, borderRadius: 12, marginLeft: -16 },
   listItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1 },
   listItemContent: { flex: 1 },
   listItemName: { fontSize: 14, fontWeight: '600', marginBottom: 4 },
@@ -442,9 +598,23 @@ const styles = StyleSheet.create({
   amountBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   amountBadgeText: { fontSize: 12, fontWeight: '600' },
   pendingAmount: { fontSize: 13, fontWeight: '500' },
-  emptyContainer: { paddingVertical: 24, alignItems: 'center' },
-  emptyText: { fontSize: 15, fontWeight: '600', marginBottom: 4 },
-  emptySub: { fontSize: 12, color: '#9ca3af' },
-  emptyBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
-  emptyBadgeText: { fontSize: 10, fontWeight: '700' },
+  emptyContainer: { paddingVertical: 32, alignItems: 'center' },
+  emptyText: { fontSize: 15, fontWeight: '600', marginBottom: 6 },
+  emptySub: { fontSize: 13, color: '#9ca3af', textAlign: 'center' },
+  emptyBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  emptyBadgeText: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
+  rangeSelector: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  rangeBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: '#f3f4f610' },
+  rangeBtnText: { fontSize: 12, fontWeight: '700' },
+  chartWrapper: { paddingLeft: 8 },
+  panHint: { fontSize: 10, textAlign: 'center', marginTop: 8, fontWeight: '600', opacity: 0.5 },
+  pointWatcherValue: { fontSize: 13, fontWeight: '700' },
+  watcherRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 4 },
+  watcherSub: { fontSize: 13, color: '#9ca3af', marginTop: 2, fontWeight: '500' },
+  vertDivider: { width: 1, height: 12 },
+  topFilterBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  chartLegend: { flexDirection: 'row', gap: 10 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  legendDot: { width: 8, height: 8, borderRadius: 4 },
+  legendText: { fontSize: 10, fontWeight: '600' },
 })
