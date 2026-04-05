@@ -15,11 +15,19 @@ interface AlertOptions {
   type?: AlertType
 }
 
+export interface ToastOptions {
+  message: string
+  type?: AlertType
+  duration?: number
+}
+
 interface AlertContextType {
   alert: AlertOptions | null
   visible: boolean
   showAlert: (options: AlertOptions) => void
   hideAlert: () => void
+  toast: ToastOptions | null
+  showToast: (options: ToastOptions) => void
 }
 
 const AlertContext = createContext<AlertContextType | undefined>(undefined)
@@ -27,6 +35,7 @@ const AlertContext = createContext<AlertContextType | undefined>(undefined)
 export function AlertProvider({ children }: { children: React.ReactNode }) {
   const [alert, setAlert] = useState<AlertOptions | null>(null)
   const [visible, setVisible] = useState(false)
+  const [toast, setToast] = useState<ToastOptions | null>(null)
 
   const showAlert = useCallback((options: AlertOptions) => {
     setAlert(options)
@@ -37,8 +46,15 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
     setVisible(false)
   }, [])
 
+  const showToast = useCallback((options: ToastOptions) => {
+    setToast(options)
+    setTimeout(() => {
+      setToast(null)
+    }, options.duration || 3000)
+  }, [])
+
   return (
-    <AlertContext.Provider value={{ alert, visible, showAlert, hideAlert }}>
+    <AlertContext.Provider value={{ alert, visible, showAlert, hideAlert, toast, showToast }}>
       {children}
     </AlertContext.Provider>
   )

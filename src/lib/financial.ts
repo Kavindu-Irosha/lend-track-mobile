@@ -1,7 +1,8 @@
-import { addDays, addWeeks, addMonths, format } from 'date-fns'
+import { addDays, addWeeks, addMonths, format, differenceInDays } from 'date-fns'
 
-export type InterestType = 'flat' | 'percent'
+export type InterestType = 'flat' | 'percent' | 'reducing'
 export type InstallmentType = 'daily' | 'weekly' | 'monthly'
+export type PenaltyType = 'fixed' | 'daily'
 
 /**
  * Calculates the total interest amount based on flat value or percentage
@@ -14,22 +15,64 @@ export function calculateInterestAmount(
   if (type === 'flat') {
     return interestValue
   }
-  // If percentage, we assume it's the total interest for the loan duration
-  // In professional apps, this might be monthly %, but for now, we'll keep it simple:
-  // (Principal * Rate) / 100
+  // For 'percent' and 'reducing', we treat the interestValue as the total rate for the loan duration
+  // Professional lenders usually treat this as a monthly rate, but for simplicity:
   return (principal * interestValue) / 100
 }
 
 /**
- * Calculates the installment amount
+ * Calculates the installment amount using Reducing Balance (EMI) formula
+ * P * r * (1 + r)^n / ((1 + r)^n - 1)
+ */
+export function calculateEMI(
+  principal: number,
+  annualRate: number,
+  tenureMonths: number
+): number {
+  if (annualRate === 0) return principal / tenureMonths
+  const r = (annualRate / 100) / 12
+  const n = tenureMonths
+  const emi = (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1)
+  return Math.round(emi * 100) / 100
+}
+
+/**
+ * Calculates the installment amount with rounding protection
  */
 export function calculateInstallment(
   totalPayable: number,
-  installmentType: InstallmentType,
-  tenureValue: number // e.g., 5 months, 10 weeks
+  tenureValue: number
 ): number {
   if (tenureValue <= 0) return totalPayable
-  return totalPayable / tenureValue
+  // Round to nearest integer (or 2 decimal places if needed) to avoid drift
+  return Math.ceil(totalPayable / tenureValue)
+}
+
+/**
+ * Calculates penalties based on 3-day grace period
+ */
+export function calculateLateFee(
+  dueDate: Date | string,
+  overdueAmount: number,
+  penaltyEnabled: boolean,
+  penaltyType: PenaltyType,
+  penaltyValue: number,
+  graceDays: number = 3
+): number {
+  if (!penaltyEnabled || penaltyValue <= 0) return 0
+  
+  const today = new Date()
+  const due = new Date(dueDate)
+  const daysLate = differenceInDays(today, due)
+  
+  if (daysLate <= graceDays) return 0
+  
+  if (penaltyType === 'fixed') {
+    return penaltyValue // One-time fee
+  } else {
+    // Daily interest on overdue amount
+    return (overdueAmount * (penaltyValue / 100) * daysLate)
+  }
 }
 
 /**
@@ -71,10 +114,10 @@ export function getWhatsAppReminder(
   penalty: number = 0
 ): string {
   const formattedAmount = `Rs. ${amount.toLocaleString()}`
-  const formattedPenalty = penalty > 0 ? ` plus a penalty of Rs. ${penalty.toLocaleString()}` : ''
+  const formattedPenalty = penalty > 0 ? ` plus an accumulated penalty of Rs. ${penalty.toLocaleString()}` : ''
   
   if (isOverdue) {
-    return `Hello ${customerName}, your payment of ${formattedAmount}${formattedPenalty} was due on ${dueDate}. Please settle as soon as possible to avoid further penalties. Thank you.`
+    return `Hello ${customerName}, your payment of ${formattedAmount}${formattedPenalty} is currently OVERDUE (Due was ${dueDate}). Please settle immediately to stop further penalty accrual. Thank you.`
   }
   
   return `Hello ${customerName}, this is a friendly reminder that your payment of ${formattedAmount} is due on ${dueDate}. Thank you.`

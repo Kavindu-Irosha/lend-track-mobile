@@ -9,7 +9,7 @@ interface FormInputProps extends TextInputProps {
 }
 
 export default function FormInput({ label, error, required, style, ...props }: FormInputProps) {
-  const { colors } = useTheme()
+  const { colors, isDark } = useTheme()
 
   return (
     <View style={styles.container}>
@@ -26,7 +26,7 @@ export default function FormInput({ label, error, required, style, ...props }: F
           },
           style,
         ]}
-        placeholderTextColor={colors.textTertiary}
+        placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.4)' : colors.textTertiary}
         {...props}
       />
       {error && (

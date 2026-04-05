@@ -26,19 +26,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-      setLoading(false)
-    })
+    // Get initial session with improved error handling
+    async function initSession() {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession()
+        
+        if (error) {
+          console.error('Initial session fetch error:', error)
+          // If the token is invalid or refresh fails, we should clear it locally
+          if (error.message.includes('Refresh Token')) {
+             await supabase.auth.signOut()
+          }
+          setSession(null)
+          setUser(null)
+        } else {
+          setSession(session)
+          setUser(session?.user ?? null)
+        }
+      } catch (e) {
+        console.error('Critical Auth initialization error:', e)
+        setSession(null)
+        setUser(null)
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    initSession()
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      async (event, session) => {
         setSession(session)
         setUser(session?.user ?? null)
         setLoading(false)
+
+        // Handle specific events
+        if (event === 'SIGNED_OUT') {
+          // Force a cleanup just in case
+          setSession(null)
+          setUser(null)
+        }
       }
     )
 
