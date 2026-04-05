@@ -23,9 +23,9 @@ import { formatCurrency } from '@/src/lib/utils'
 import * as FileSystem from 'expo-file-system/legacy'
 import * as Sharing from 'expo-sharing'
 import * as Haptics from 'expo-haptics'
-import { BarChart } from 'react-native-chart-kit'
 import { Dimensions, Modal, ScrollView as RNScrollView } from 'react-native'
 import Animated, { FadeInDown, FadeInRight, FadeOut, FadeIn, Layout, SlideInRight, SlideOutLeft, SlideInLeft, SlideOutRight } from 'react-native-reanimated'
+import { LineChart, BarChart } from 'react-native-chart-kit'
 import { X, Calendar, ChevronRight, BarChart3, List, Download as DownloadIcon } from 'lucide-react-native'
 import { startOfMonth, endOfMonth, subMonths, subDays } from 'date-fns'
 import DateTimePicker from '@react-native-community/datetimepicker'
@@ -51,6 +51,7 @@ export default function PaymentsScreen() {
   const [showCustomRange, setShowCustomRange] = useState(false)
   const [pickerMode, setPickerMode] = useState<'start' | 'end'>('start')
   const [showPicker, setShowPicker] = useState(false)
+  const [selectedMonth, setSelectedMonth] = useState<{ label: string; value: number } | null>(null)
 
   const fetchPayments = useCallback(async () => {
     try {
@@ -245,8 +246,8 @@ export default function PaymentsScreen() {
           {viewMode === 'recent' ? (
             <Animated.View
               key="recent-tab"
-              entering={SlideInLeft.duration(400).springify()}
-              exiting={SlideOutRight.duration(300)}
+              entering={FadeIn.duration(300)}
+              exiting={FadeOut.duration(200)}
               style={{ flex: 1 }}
             >
               <FlatList
@@ -263,80 +264,108 @@ export default function PaymentsScreen() {
                     onAction={() => router.push('/(tabs)/payments/new')}
                   />
                 }
-                renderItem={({ item }) => (
-                  <View style={{ backgroundColor: colors.surface }}>
+                renderItem={({ item, index }) => (
+                  <Animated.View 
+                    entering={FadeInDown.delay(Math.min(index * 100, 1000)).duration(400).springify()}
+                    style={{ backgroundColor: colors.surface }}
+                  >
                     <PaymentCard
                       amount={item.amount}
                       customerName={item.loans?.customers?.name || 'Unknown'}
                       paymentDate={item.payment_date}
                       onDelete={() => handleDeletePayment(item.id)}
                     />
-                  </View>
+                  </Animated.View>
                 )}
               />
             </Animated.View>
           ) : (
             <Animated.View
               key="history-tab"
-              entering={SlideInRight.duration(400).springify()}
-              exiting={SlideOutLeft.duration(300)}
+              entering={FadeIn.duration(300)}
+              exiting={FadeOut.duration(200)}
               style={{ flex: 1 }}
             >
               <RNScrollView
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchPayments() }} tintColor={colors.primary} />}
                 contentContainerStyle={styles.historyContent}
               >
-                <View
+                <Animated.View
+                  entering={FadeInDown.delay(100).duration(400).springify()}
                   style={[styles.chartCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
                 >
                   <View style={styles.chartHeader}>
                     <View>
                       <Text style={[styles.chartTitle, { color: colors.text }]}>12-Month Performance</Text>
-                      <Text style={[styles.chartSubtitle, { color: colors.textTertiary }]}>Collection trends across the year</Text>
+                      {selectedMonth ? (
+                        <Text style={[styles.chartWatcherValue, { color: colors.primary }]}>
+                          {selectedMonth.label}: <Text style={{ color: colors.text }}>{formatCurrency(selectedMonth.value)}</Text>
+                        </Text>
+                      ) : (
+                        <Text style={[styles.chartSubtitle, { color: colors.textTertiary }]}>Collection trends across the year</Text>
+                      )}
                     </View>
                     <View style={[styles.chartBadge, { backgroundColor: colors.primaryBg }]}>
                       <Text style={[styles.chartBadgeText, { color: colors.primary }]}>Live Data</Text>
                     </View>
                   </View>
 
-                  <View style={styles.chartContainer}>
-                    <BarChart
-                      data={{
-                        labels: historyData.map(h => h.label),
-                        datasets: [{ data: historyData.map(h => h.total / 1000) }]
-                      }}
-                      width={screenWidth - 48}
-                      height={220}
-                      yAxisLabel="Rs."
-                      yAxisSuffix="k"
-                      chartConfig={{
-                        backgroundColor: colors.surface,
-                        backgroundGradientFrom: colors.surface,
-                        backgroundGradientTo: colors.surface,
-                        decimalPlaces: 0,
-                        color: (opacity = 1) => `rgba(${parseInt(colors.primary.slice(1, 3), 16)}, ${parseInt(colors.primary.slice(3, 5), 16)}, ${parseInt(colors.primary.slice(5, 7), 16)}, ${opacity})`,
-                        labelColor: (opacity = 1) => colors.textTertiary,
-                        style: { borderRadius: 16 },
-                        barPercentage: 0.6,
-                        propsForBackgroundLines: {
-                          strokeDasharray: '',
-                          stroke: colors.border,
-                          strokeOpacity: 0.3
-                        }
-                      }}
-                      style={{ marginVertical: 8, borderRadius: 16, marginLeft: -16 }}
-                      fromZero
-                      showValuesOnTopOfBars
-                      flatColor={true}
-                    />
-                  </View>
-                </View>
+                  <RNScrollView 
+                    horizontal 
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.chartWrapper}
+                  >
+                    <View style={styles.chartContainer}>
+                      <LineChart
+                        data={{
+                          labels: historyData.map(h => h.label),
+                          datasets: [{ data: historyData.map(h => h.total / 1000) }]
+                        }}
+                        width={Math.max(screenWidth - 48, historyData.length * 60)}
+                        height={200}
+                        withInnerLines={false}
+                        withOuterLines={false}
+                        withDots={true}
+                        chartConfig={{
+                          backgroundColor: 'transparent',
+                          backgroundGradientFrom: colors.surface,
+                          backgroundGradientTo: colors.surface,
+                          decimalPlaces: 0,
+                          color: (opacity = 1) => colors.primary,
+                          labelColor: () => colors.textTertiary,
+                          style: { borderRadius: 16 },
+                          propsForDots: {
+                            r: "4",
+                            strokeWidth: "0",
+                          },
+                          fillShadowGradientFrom: colors.primary,
+                          fillShadowGradientTo: 'transparent',
+                          fillShadowGradientFromOpacity: 0.15,
+                          fillShadowGradientToOpacity: 0,
+                        }}
+                        bezier
+                        onDataPointClick={({ value, index }: { value: number; index: number }) => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+                          setSelectedMonth({
+                            label: historyData[index]?.fullLabel || "Date",
+                            value: value * 1000
+                          })
+                        }}
+                        style={styles.chart}
+                      />
+                    </View>
+                  </RNScrollView>
+                  <Text style={[styles.panHint, { color: colors.textTertiary }]}>
+                     ← Swipe left/right to move through months →
+                  </Text>
+                </Animated.View>
 
                 <View style={styles.historyList}>
                   <Text style={[styles.historyListTitle, { color: colors.text }]}>Collection Breakdown</Text>
                   {historyData.slice().reverse().map((item, idx) => (
-                    <View
+                    <Animated.View
                       key={idx}
+                      entering={FadeInDown.delay(200 + (idx * 50)).duration(400).springify()}
                       style={[styles.historyItem, { borderBottomColor: colors.border }]}
                     >
                       <View style={styles.historyRowLeft}>
@@ -349,7 +378,7 @@ export default function PaymentsScreen() {
                       <Text style={[styles.historyItemVal, { color: item.total > 0 ? colors.primary : colors.textTertiary }]}>
                         {formatCurrency(item.total)}
                       </Text>
-                    </View>
+                    </Animated.View>
                   ))}
                 </View>
               </RNScrollView>
@@ -494,6 +523,10 @@ const styles = StyleSheet.create({
   historyItemLabel: { fontSize: 16, fontWeight: '600' },
   historyItemYear: { fontSize: 12, marginTop: 1 },
   historyItemVal: { fontSize: 16, fontWeight: '700' },
+  chartWrapper: { paddingLeft: 8 },
+  chartWatcherValue: { fontSize: 13, fontWeight: '700', marginTop: 2 },
+  panHint: { fontSize: 10, textAlign: 'center', marginTop: 8, fontWeight: '600', opacity: 0.5 },
+  chart: { marginTop: 4, borderRadius: 12, marginLeft: -16 },
   // Modal
   modalOverlay: { flex: 1, justifyContent: 'flex-end' },
   modalContent: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
