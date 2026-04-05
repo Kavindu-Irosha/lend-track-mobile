@@ -2,6 +2,7 @@ import React from 'react'
 import { Tabs } from 'expo-router'
 import { useTheme } from '@/src/context/ThemeContext'
 import { LayoutDashboard, Users, CreditCard, Receipt, BellRing } from 'lucide-react-native'
+import AnimatedTabBar from '@/src/components/AnimatedTabBar'
 import { Platform } from 'react-native'
 
 export default function TabsLayout() {
@@ -9,22 +10,9 @@ export default function TabsLayout() {
 
   return (
     <Tabs
+      tabBar={(props) => <AnimatedTabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textTertiary,
-        tabBarStyle: {
-          backgroundColor: colors.tabBar,
-          borderTopColor: colors.tabBarBorder,
-          borderTopWidth: 1,
-          height: Platform.OS === 'ios' ? 88 : 64,
-          paddingBottom: Platform.OS === 'ios' ? 28 : 8,
-          paddingTop: 8,
-        },
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
-        },
       }}
     >
       <Tabs.Screen
@@ -65,7 +53,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="settings"
         options={{
-          href: null, // hide from tab bar
+          href: null,
         }}
       />
     </Tabs>

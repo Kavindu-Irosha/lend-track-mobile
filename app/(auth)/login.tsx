@@ -13,6 +13,7 @@ import {
 import { useAuth } from '@/src/context/AuthContext'
 import { useTheme } from '@/src/context/ThemeContext'
 import { useAlert } from '@/src/context/AlertContext'
+import { useSecurity } from '@/src/context/SecurityContext'
 import { useRouter } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 
@@ -20,6 +21,7 @@ export default function LoginScreen() {
   const { signIn, signUp } = useAuth()
   const { colors, isDark } = useTheme()
   const { showAlert } = useAlert()
+  const { saveCredentials } = useSecurity()
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -57,6 +59,8 @@ export default function LoginScreen() {
           })
           setMode('signin')
         } else {
+          // Explicitly save for biometrics if enabled
+          await saveCredentials(email.trim(), password)
           // Explicit redirect on sign in success
           router.replace('/(tabs)/dashboard')
         }
@@ -92,7 +96,7 @@ export default function LoginScreen() {
             <Text style={[styles.label, { color: colors.textSecondary }]}>Email address</Text>
             <TextInput
               style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
-              placeholder="you@example.com"
+              placeholder="admin@lendtrack.com"
               placeholderTextColor={colors.textTertiary}
               value={email}
               onChangeText={setEmail}
