@@ -25,13 +25,12 @@ import {
 import { format } from 'date-fns'
 import { generateCustomerStatement } from '@/src/lib/reports'
 import * as Haptics from 'expo-haptics'
-
 import { useAlert } from '@/src/context/AlertContext'
 
 type LoanFilter = 'all' | 'completed' | 'overdue'
 
 export default function CustomerDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>()
+  const { id, name } = useLocalSearchParams<{ id: string; name?: string }>()
   const { colors, isDark } = useTheme()
   const { showAlert } = useAlert()
   const router = useRouter()
@@ -86,10 +85,7 @@ export default function CustomerDetailScreen() {
         const remaining = loanTotal - paid
         let status = 'Active'
 
-        if (remaining < 0) {
-          status = 'Credit'
-          completedTotal += loanTotal // It is completed if fully paid + extra
-        } else if (remaining === 0) {
+        if (remaining <= 0) {
           status = 'Completed'
           completedTotal += loanTotal
         } else if (new Date(loan.due_date) < new Date()) {
@@ -122,13 +118,13 @@ export default function CustomerDetailScreen() {
   }
 
   const handleDeleteCustomer = async () => {
-    const hasActiveLoans = loans.some(l => l.computedStatus !== 'Completed')
+    const hasOutstandingBalance = totals.remaining > 0
 
-    if (hasActiveLoans) {
+    if (hasOutstandingBalance) {
       showAlert({
-        title: 'Cannot Delete',
-        message: 'This customer has active or overdue loans. You can only delete customers with no outstanding balances.',
-        type: 'warning'
+        title: 'Capital Protection Lock',
+        message: `This customer still owes ${formatCurrency(totals.remaining)}. You cannot delete a customer with an active debt. Please settle all loans first.`,
+        type: 'error'
       })
       return
     }
@@ -168,6 +164,43 @@ export default function CustomerDetailScreen() {
     })
   }
 
+  const handleDeleteLoan = (loanId: string) => {
+    const loan = loans.find(l => l.id === loanId)
+    if (loan && loan.remaining > 0) {
+      showAlert({
+        title: 'Active Loan Protection',
+        message: `This loan has an outstanding balance of ${formatCurrency(loan.remaining)}. You cannot delete an active loan that still has money owed.`,
+        type: 'error'
+      })
+      return
+    }
+
+    showAlert({
+      title: 'Delete Loan Record',
+      message: 'Are you sure? This will permanentely remove the loan and its payment history from your records.',
+      type: 'warning',
+      buttons: [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete Forever', 
+          style: 'destructive',
+          onPress: async () => {
+             try {
+               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy)
+               const { error } = await supabase.from('loans').delete().eq('id', loanId)
+               if (error) throw error
+               
+               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+               fetchData() 
+             } catch (err: any) {
+               showAlert({ title: 'Error', message: err.message, type: 'error' })
+             }
+          }
+        }
+      ]
+    })
+  }
+
   const filteredLoans = loans.filter(loan => {
     if (activeTab === 'all') return true
     return loan.computedStatus.toLowerCase() === activeTab
@@ -179,7 +212,7 @@ export default function CustomerDetailScreen() {
     }, [fetchData])
   )
 
-  if (loading) return <LoadingSpinner />
+  if (loading) return <LoadingSpinner message={`Loading ${name || 'customer'} details...`} />
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
@@ -314,6 +347,7 @@ export default function CustomerDetailScreen() {
                 status={loan.computedStatus}
                 dueDate={loan.due_date}
                 onPay={loan.remaining > 0 ? () => router.push(`/(tabs)/payments/new?loan_id=${loan.id}`) : undefined}
+                onDelete={() => handleDeleteLoan(loan.id)}
               />
             ))
           )}

@@ -306,28 +306,32 @@ export default function DashboardScreen() {
             description={`Expected Profit: ${formatCurrency(stats.expectedProfit)}`}
             containerStyle={{ marginBottom: 12 }}
           />
-          <View style={styles.statsGridRow}>
-            <StatsCard 
-              icon={Receipt} 
-              label="Collected" 
-              value={formatCurrency(stats.totalCollected)} 
-              color={colors.success}
-              containerStyle={{ flex: 1 }}
-            />
-            <StatsCard 
-              icon={AlertCircle} 
-              label={stats.totalCredits > 0 ? "Pending" : "Outstanding"}
-              value={formatCurrency(stats.totalPending)} 
-              color={colors.warning}
-              containerStyle={{ flex: 1 }}
-            />
-          </View>
+          <StatsCard 
+            variant="featured"
+            icon={Receipt} 
+            label="Collected" 
+            value={formatCurrency(stats.totalCollected)} 
+            color={colors.success}
+            description="Total Capital Recovered"
+            containerStyle={{ marginBottom: 12 }}
+          />
+          <StatsCard 
+            variant="featured"
+            icon={AlertCircle} 
+            label={stats.totalCredits > 0 ? "Pending" : "Outstanding"}
+            value={formatCurrency(stats.totalPending)} 
+            color={colors.warning}
+            description="Total Unpaid Commitment"
+            containerStyle={{ marginBottom: 12 }}
+          />
           {stats.totalCredits > 0 && (
             <StatsCard 
+              variant="featured"
               icon={CheckCircle2} 
               label="Customer Credits" 
               value={formatCurrency(stats.totalCredits)} 
               color={colors.primary}
+              description="Unclaimed Prepaid Accounts"
               containerStyle={{ marginTop: 12 }}
             />
           )}
@@ -575,7 +579,6 @@ const styles = StyleSheet.create({
   actionButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 13, borderRadius: 12, gap: 8 },
   actionButtonText: { color: '#fff', fontWeight: '600', fontSize: 14 },
   statsSection: { marginBottom: 20 },
-  statsGridRow: { flexDirection: 'row', gap: 12 },
   section: { borderRadius: 16, padding: 16, borderWidth: 1, marginBottom: 16 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   sectionTitle: { fontSize: 16, fontWeight: '700' },

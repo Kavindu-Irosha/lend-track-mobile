@@ -165,7 +165,7 @@ export default function CustomersScreen() {
           renderItem={({ item }) => (
             <TouchableOpacity
               style={[styles.customerCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
-              onPress={() => router.push(`/(tabs)/customers/${item.id}`)}
+              onPress={() => router.push(`/(tabs)/customers/${item.id}?name=${encodeURIComponent(item.name)}`)}
               activeOpacity={0.7}
             >
               <View style={[styles.avatar, { backgroundColor: colors.primaryBg }]}>
