@@ -17,10 +17,12 @@ import { supabase } from '@/src/lib/supabase'
 import LoanCard from '@/src/components/LoanCard'
 import LoadingSpinner from '@/src/components/LoadingSpinner'
 import EmptyState from '@/src/components/EmptyState'
-import { Plus, Search, CreditCard, Download, Calendar, X, ChevronRight } from 'lucide-react-native'
+import { Plus, Search, CreditCard, Download, Calendar, X, ChevronRight, Trash2 } from 'lucide-react-native'
 import { generateCollectionReport } from '@/src/lib/reports'
+import * as Haptics from 'expo-haptics'
 import { format, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns'
 import DateTimePicker from '@react-native-community/datetimepicker'
+import { formatCurrency } from '@/src/lib/utils'
 import { useAlert } from '@/src/context/AlertContext'
 
 export default function LoansScreen() {
@@ -148,6 +150,43 @@ export default function LoansScreen() {
     }
   }
 
+  const handleDeleteLoan = (loanId: string) => {
+    const loan = loans.find(l => l.id === loanId)
+    if (loan && loan.remaining > 0) {
+      showAlert({
+        title: 'Capital Protection Lock',
+        message: `This loan still has an outstanding balance of ${formatCurrency(loan.remaining)}. You cannot delete an active debt.`,
+        type: 'error'
+      })
+      return
+    }
+
+    showAlert({
+      title: 'Delete Loan Record',
+      message: 'Are you sure? This will permanentely remove the loan and its payment history from your records.',
+      type: 'warning',
+      buttons: [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete Forever', 
+          style: 'destructive',
+          onPress: async () => {
+             try {
+               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy)
+               const { error } = await supabase.from('loans').delete().eq('id', loanId)
+               if (error) throw error
+               
+               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+               fetchLoans()
+             } catch (err: any) {
+               showAlert({ title: 'Error', message: err.message, type: 'error' })
+             }
+          }
+        }
+      ]
+    })
+  }
+
   useFocusEffect(
     useCallback(() => {
       fetchLoans()
@@ -218,6 +257,7 @@ export default function LoansScreen() {
                 dueDate={item.due_date}
                 onPress={() => router.push(`/(tabs)/customers/${item.customerId}`)}
                 onPay={item.remaining > 0 ? () => router.push(`/(tabs)/payments/new?loan_id=${item.id}`) : undefined}
+                onDelete={() => handleDeleteLoan(item.id)}
               />
             </View>
           )}
