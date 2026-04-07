@@ -1,5 +1,5 @@
-export const APP_VERSION = "1.0.4"
-export const BUILD_NUMBER = "2026.04.06.01"
+export const APP_VERSION = "1.0.5"
+export const BUILD_NUMBER = "2026.04.08.01"
 
 export type ChangelogItem = {
   version: string;
@@ -9,6 +9,17 @@ export type ChangelogItem = {
 }
 
 export const CHANGELOG: ChangelogItem[] = [
+  {
+    version: "1.0.5",
+    date: "2026-04-08",
+    title: "Data Integrity & Capital Protection",
+    notes: [
+      "Implemented 'Capital Protection Lock' to prevent deletion of loans with active balances.",
+      "Optimized Dashboard Cash Flow data fetching for faster cold starts.",
+      "Refined Auth defaults and biometric security handshakes.",
+      "Fixed UI layout inconsistencies in Customer Detail view."
+    ]
+  },
   {
     version: "1.0.4",
     date: "2026-04-06",
