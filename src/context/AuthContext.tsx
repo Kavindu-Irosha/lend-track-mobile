@@ -29,24 +29,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Get initial session with improved error handling
     async function initSession() {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession()
+        const { data: { session: initialSession }, error } = await supabase.auth.getSession()
         
-        if (error) {
-          console.error('Initial session fetch error:', error)
-          // If the token is invalid or refresh fails, we should clear it locally
-          if (error.message.includes('Refresh Token')) {
+        if (initialSession) {
+          // Immediately set the session to allow the UI to render and avoid white screens/crashes
+          setSession(initialSession)
+          setUser(initialSession.user)
+        } else if (error) {
+           const isRefreshTokenError = error.message.includes('Refresh Token')
+           if (isRefreshTokenError) {
              await supabase.auth.signOut()
-          }
-          setSession(null)
-          setUser(null)
-        } else {
-          setSession(session)
-          setUser(session?.user ?? null)
+           }
         }
       } catch (e) {
-        console.error('Critical Auth initialization error:', e)
-        setSession(null)
-        setUser(null)
+        console.error('Initial Auth check error:', e)
       } finally {
         setLoading(false)
       }
@@ -61,9 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session?.user ?? null)
         setLoading(false)
 
-        // Handle specific events
         if (event === 'SIGNED_OUT') {
-          // Force a cleanup just in case
           setSession(null)
           setUser(null)
         }
@@ -72,6 +66,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => subscription.unsubscribe()
   }, [])
+
+  // Passive Background Verification:
+  // Once the app is stable and we've landed on a screen, we verify if the user exists on the server.
+  // This avoids calling getUser() during the high-pressure splash screen startup phase.
+  useEffect(() => {
+    if (!user || loading) return
+
+    const timer = setTimeout(async () => {
+      try {
+         const { data: { user: verifiedUser }, error: userError } = await supabase.auth.getUser()
+         if (userError || !verifiedUser) {
+           console.warn('Ghost session detected, clearing storage...')
+           await signOut()
+         } else if (verifiedUser) {
+            // Smoothly sync the verified user data without interrupting the flow
+            setUser(verifiedUser)
+         }
+      } catch (e) {
+         console.warn('Background verification failed (likely offline):', e)
+      }
+    }, 2000)
+
+    return () => clearTimeout(timer)
+  }, [user?.id, loading])
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password })

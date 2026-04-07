@@ -10,6 +10,7 @@ import {
   ScrollView,
   Alert,
 } from 'react-native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useAuth } from '@/src/context/AuthContext'
 import { useTheme } from '@/src/context/ThemeContext'
 import { useAlert } from '@/src/context/AlertContext'
@@ -21,12 +22,26 @@ export default function LoginScreen() {
   const { signIn, signUp } = useAuth()
   const { colors, isDark } = useTheme()
   const { showAlert } = useAlert()
-  const { saveCredentials } = useSecurity()
+  const { saveCredentials, isBiometricEnabled, authenticate, isAuthenticated } = useSecurity()
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [mode, setMode] = useState<'signin' | 'signup'>('signin')
+  const [hasAccountSetup, setHasAccountSetup] = useState<boolean>(false)
+
+  // No longer auto-triggering biometrics on app start to prioritize the login form.
+  
+  // Track if this device has ever successfully launched an account
+  React.useEffect(() => {
+    async function checkAccountStatus() {
+      const saved = await AsyncStorage.getItem('@has_account_setup')
+      if (saved === 'true') {
+        setHasAccountSetup(true)
+      }
+    }
+    checkAccountStatus()
+  }, [])
 
   const handleSubmit = async () => {
     if (!email.trim() || !password.trim()) {
@@ -45,19 +60,33 @@ export default function LoginScreen() {
         : await signUp(email.trim(), password)
 
       if (error) {
+        // IMPROVED ERROR GUIDANCE
+        // Supabase returns 'Invalid login credentials' for both missing user AND wrong password.
+        // We use our local flag to provide better guidance for first-time users.
+        const isInvalidCreds = error.includes('Invalid login credentials')
+        const errorMessage = isInvalidCreds && !hasAccountSetup
+          ? 'No user found, create an account'
+          : error
+
         showAlert({
           title: 'Error',
-          message: error,
+          message: errorMessage,
           type: 'error'
         })
       } else {
+        // SUCCESS - Mark that an account exists on this device
+        await AsyncStorage.setItem('@has_account_setup', 'true')
+        setHasAccountSetup(true)
+
         if (mode === 'signup') {
           showAlert({
             title: 'Success',
-            message: 'Account created! You can now sign in.',
+            message: 'Account created, redirecting...',
             type: 'success'
           })
-          setMode('signin')
+          // Auto-login and redirect instead of moving to sign-in mode
+          await saveCredentials(email.trim(), password)
+          router.replace('/(tabs)/dashboard')
         } else {
           // Explicitly save for biometrics if enabled
           await saveCredentials(email.trim(), password)
@@ -227,4 +256,42 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
+  biometricSection: {
+    alignItems: 'center',
+    padding: 30,
+    gap: 16,
+  },
+  biometricBtn: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  biometricIcon: {
+    fontSize: 48,
+  },
+  biometricTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  biometricDescription: {
+    fontSize: 15,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 20,
+  },
+  fallbackBtn: {
+    padding: 12,
+  },
+  fallbackText: {
+    fontWeight: '600',
+    fontSize: 15,
+  }
 })

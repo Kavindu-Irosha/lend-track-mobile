@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react'
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
 import { useSecurity } from '@/src/context/SecurityContext'
+import { useAuth } from '@/src/context/AuthContext'
 import { useTheme } from '@/src/context/ThemeContext'
 import { Fingerprint, Lock, ShieldCheck } from 'lucide-react-native'
 import Animated, { 
@@ -17,6 +18,7 @@ import Animated, {
 
 export default function BiometricGuard() {
   const { authenticate, isAuthenticated, isBiometricEnabled, loading } = useSecurity()
+  const { user } = useAuth()
   const { colors } = useTheme()
   
   // Dual-Phase Ripple Animations
@@ -53,7 +55,7 @@ export default function BiometricGuard() {
     transform: [{ scale: interpolate(pulse1.value, [0, 0.5, 1], [1, 1.05, 1]) }]
   }))
 
-  if (isAuthenticated || !isBiometricEnabled || loading) return null
+  if (isAuthenticated || !isBiometricEnabled || loading || !user) return null
 
   return (
     <Animated.View 
