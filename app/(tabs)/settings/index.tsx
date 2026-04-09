@@ -7,7 +7,7 @@ import {
   ScrollView,
   Modal,
 } from 'react-native'
-import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated'
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated'
 import { useRouter, useFocusEffect } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTheme } from '@/src/context/ThemeContext'
@@ -152,7 +152,7 @@ export default function SettingsHub() {
           {/* Changelog Modal */}
           <Modal visible={showChangelog} transparent animationType="none" onRequestClose={() => setShowChangelog(false)}>
             <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
-              <Animated.View entering={ZoomIn.duration(300).springify().damping(18)} style={[styles.modalContent, { backgroundColor: colors.surface, borderColor: isDark ? '#334155' : '#e2e8f0' }]}>
+              <Animated.View entering={FadeInUp.duration(400).springify().mass(0.8).damping(20)} style={[styles.modalContent, { backgroundColor: colors.surface, borderColor: isDark ? '#334155' : '#e2e8f0' }]}>
                 <View style={[styles.modalAccent, { backgroundColor: colors.primary }]} />
                 <View style={styles.modalHeader}>
                   <View>
