@@ -1,9 +1,9 @@
 import React from 'react'
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
 import { useTheme } from '@/src/context/ThemeContext'
-import { formatCurrency } from '@/src/lib/utils'
+import { formatCurrency, formatAppDate } from '@/src/lib/utils'
+import { useSettings } from '@/src/context/SettingsContext'
 import { Calendar, User, Receipt, Trash2 } from 'lucide-react-native'
-import { format } from 'date-fns'
 
 interface PaymentCardProps {
   amount: number
@@ -21,16 +21,18 @@ export default function PaymentCard({
   onDelete,
 }: PaymentCardProps) {
   const { colors } = useTheme()
+  const { settings } = useSettings()
+  const compact = settings.compactMode
 
   return (
     <TouchableOpacity
-      style={[styles.card, { borderBottomColor: colors.border }]}
+      style={[styles.card, { borderBottomColor: colors.border, paddingVertical: compact ? 10 : 14 }]}
       onPress={onPress}
       activeOpacity={0.7}
       disabled={!onPress}
     >
-      <View style={[styles.iconContainer, { backgroundColor: colors.successBg }]}>
-        <Receipt size={20} color={colors.success} />
+      <View style={[styles.iconContainer, { backgroundColor: colors.successBg, width: compact ? 36 : 44, height: compact ? 36 : 44, borderRadius: compact ? 18 : 22 }]}>
+        <Receipt size={compact ? 16 : 20} color={colors.success} />
       </View>
       <View style={styles.content}>
         <Text style={[styles.amount, { color: colors.text }]}>
@@ -47,7 +49,7 @@ export default function PaymentCard({
         <View style={styles.dateContainer}>
           <Calendar size={14} color={colors.textTertiary} />
           <Text style={[styles.dateText, { color: colors.textSecondary }]}>
-            {format(new Date(paymentDate), 'MMM d, yyyy')}
+            {formatAppDate(new Date(paymentDate))}
           </Text>
         </View>
         {onDelete && (

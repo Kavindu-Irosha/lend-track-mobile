@@ -29,21 +29,41 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false)
   const [mode, setMode] = useState<'signin' | 'signup'>('signin')
   const [hasAccountSetup, setHasAccountSetup] = useState<boolean>(false)
+  const [lockoutUntil, setLockoutUntil] = useState<number | null>(null)
 
-  // No longer auto-triggering biometrics on app start to prioritize the login form.
-  
-  // Track if this device has ever successfully launched an account
+  // Track if this device has ever successfully launched an account & check lockouts
   React.useEffect(() => {
     async function checkAccountStatus() {
       const saved = await AsyncStorage.getItem('@has_account_setup')
       if (saved === 'true') {
         setHasAccountSetup(true)
       }
+      
+      const lockout = await AsyncStorage.getItem('@lockout_until')
+      if (lockout) {
+        const time = parseInt(lockout, 10)
+        if (time > Date.now()) {
+          setLockoutUntil(time)
+        } else {
+          await AsyncStorage.removeItem('@lockout_until')
+          await AsyncStorage.removeItem('@failed_attempts')
+        }
+      }
     }
     checkAccountStatus()
   }, [])
 
   const handleSubmit = async () => {
+    if (lockoutUntil && lockoutUntil > Date.now()) {
+      const remainingMinutes = Math.ceil((lockoutUntil - Date.now()) / 60000)
+      showAlert({
+        title: 'Account Locked',
+        message: `Too many failed attempts. Please try again in ${remainingMinutes} minutes.`,
+        type: 'error'
+      })
+      return
+    }
+
     if (!email.trim() || !password.trim()) {
       showAlert({
         title: 'Error',
@@ -60,21 +80,46 @@ export default function LoginScreen() {
         : await signUp(email.trim(), password)
 
       if (error) {
-        // IMPROVED ERROR GUIDANCE
-        // Supabase returns 'Invalid login credentials' for both missing user AND wrong password.
-        // We use our local flag to provide better guidance for first-time users.
         const isInvalidCreds = error.includes('Invalid login credentials')
-        const errorMessage = isInvalidCreds && !hasAccountSetup
-          ? 'No user found, create an account'
-          : error
 
-        showAlert({
-          title: 'Error',
-          message: errorMessage,
-          type: 'error'
-        })
+        if (mode === 'signin' && isInvalidCreds) {
+          const attemptsStr = await AsyncStorage.getItem('@failed_attempts')
+          const attempts = attemptsStr ? parseInt(attemptsStr, 10) + 1 : 1
+          
+          if (attempts >= 5) {
+            const unlockTime = Date.now() + 15 * 60 * 1000 // 15 mins
+            await AsyncStorage.setItem('@lockout_until', unlockTime.toString())
+            setLockoutUntil(unlockTime)
+            showAlert({
+              title: 'Account Locked',
+              message: 'Too many failed attempts. Account locked for 15 minutes due to suspicious behavior.',
+              type: 'error'
+            })
+          } else {
+            await AsyncStorage.setItem('@failed_attempts', attempts.toString())
+            showAlert({
+              title: 'Error',
+              message: `Invalid credentials. Attempt ${attempts} of 5.`,
+              type: 'error'
+            })
+          }
+        } else {
+          const errorMessage = isInvalidCreds && !hasAccountSetup
+            ? 'No user found, create an account'
+            : error
+
+          showAlert({
+            title: 'Error',
+            message: errorMessage,
+            type: 'error'
+          })
+        }
       } else {
-        // SUCCESS - Mark that an account exists on this device
+        // SUCCESS - Clear brute force trackers
+        await AsyncStorage.removeItem('@failed_attempts')
+        await AsyncStorage.removeItem('@lockout_until')
+        
+        // Mark that an account exists on this device
         await AsyncStorage.setItem('@has_account_setup', 'true')
         setHasAccountSetup(true)
 

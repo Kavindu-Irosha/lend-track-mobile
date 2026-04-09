@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useMemo, useState } from 'react'
 import {
   View,
   Text,
@@ -17,7 +17,7 @@ import { supabase } from '@/src/lib/supabase'
 import PaymentCard from '@/src/components/PaymentCard'
 import LoadingSpinner from '@/src/components/LoadingSpinner'
 import EmptyState from '@/src/components/EmptyState'
-import { Plus, Download, Receipt } from 'lucide-react-native'
+import { Plus, Download, Receipt, TrendingUp, Wallet } from 'lucide-react-native'
 import { format } from 'date-fns'
 import { formatCurrency } from '@/src/lib/utils'
 import * as FileSystem from 'expo-file-system/legacy'
@@ -52,6 +52,14 @@ export default function PaymentsScreen() {
   const [pickerMode, setPickerMode] = useState<'start' | 'end'>('start')
   const [showPicker, setShowPicker] = useState(false)
   const [selectedMonth, setSelectedMonth] = useState<{ label: string; value: number } | null>(null)
+
+  // Payment stats
+  const stats = useMemo(() => {
+    const today = format(new Date(), 'yyyy-MM-dd')
+    const todayTotal = payments.filter(p => p.payment_date === today).reduce((s, p) => s + Number(p.amount), 0)
+    const totalAll = payments.reduce((s, p) => s + Number(p.amount), 0)
+    return { todayTotal, totalAll, count: payments.length }
+  }, [payments])
 
   const fetchPayments = useCallback(async () => {
     try {
@@ -123,19 +131,19 @@ export default function PaymentsScreen() {
       const { data: reportPayments } = await supabase
         .from('payments')
         .select('*, loans(id, customers(name))')
-        .gte('payment_date', format(startDate, 'yyyy-MM-dd'))
+        .gte('payment_date', format(startDate!, 'yyyy-MM-dd'))
         .lte('payment_date', format(endDate, 'yyyy-MM-dd'))
 
       if (!reportPayments || reportPayments.length === 0) {
         showAlert({
           title: 'No Data',
-          message: `No collections found for ${label}`,
+          message: `No collections found for ${label!}`,
           type: 'info'
         })
         return
       }
 
-      await generateCollectionReport(reportPayments, label)
+      await generateCollectionReport(reportPayments, label!)
       setShowExportModal(false)
     } finally {
       setExportLoading(false)
@@ -182,28 +190,28 @@ export default function PaymentsScreen() {
     })
   }
 
-  const handleExport = () => {
-    setShowExportModal(true)
-  }
-
   if (loading) return <LoadingSpinner message="Loading payments..." />
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <Animated.View key={focusKey} style={{ flex: 1 }}>
-        {/* Header */}
+
+        {/* Premium Header */}
         <Animated.View entering={FadeInDown.duration(400).springify()} style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]}>Payments</Text>
+          <View>
+            <Text style={[styles.greeting, { color: colors.textSecondary }]}>Collections</Text>
+            <Text style={[styles.title, { color: colors.text }]}>Payment Center</Text>
+          </View>
           <View style={styles.headerActions}>
             <TouchableOpacity
-              style={[styles.exportButton, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
-              onPress={handleExport}
+              style={[styles.headerBtn, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
+              onPress={() => setShowExportModal(true)}
               activeOpacity={0.7}
             >
-              <DownloadIcon size={18} color={colors.textSecondary} />
+              <DownloadIcon size={18} color={colors.primary} />
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.addButton, { backgroundColor: colors.primary }]}
+              style={[styles.headerBtn, { backgroundColor: colors.primary }]}
               onPress={() => router.push('/(tabs)/payments/new')}
               activeOpacity={0.8}
             >
@@ -212,11 +220,44 @@ export default function PaymentsScreen() {
           </View>
         </Animated.View>
 
+        {/* Stats Strip */}
+        <Animated.View entering={FadeInDown.delay(50).duration(400).springify()}>
+          <RNScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.statsScroll}>
+            <View style={[styles.statCard, { backgroundColor: isDark ? 'rgba(16,185,129,0.15)' : '#ecfdf5' }]}>
+              <View style={[styles.statIcon, { backgroundColor: isDark ? 'rgba(16,185,129,0.2)' : '#d1fae5' }]}>
+                <TrendingUp size={14} color="#10b981" />
+              </View>
+              <View>
+                <Text style={[styles.statValue, { color: isDark ? '#fff' : '#064e3b' }]}>{formatCurrency(stats.todayTotal)}</Text>
+                <Text style={[styles.statLabel, { color: '#10b981' }]}>Today</Text>
+              </View>
+            </View>
+            <View style={[styles.statCard, { backgroundColor: isDark ? 'rgba(59,130,246,0.15)' : '#eff6ff' }]}>
+              <View style={[styles.statIcon, { backgroundColor: isDark ? 'rgba(59,130,246,0.2)' : '#dbeafe' }]}>
+                <Wallet size={14} color="#3b82f6" />
+              </View>
+              <View>
+                <Text style={[styles.statValue, { color: isDark ? '#fff' : '#1e3a8a' }]}>{formatCurrency(stats.totalAll)}</Text>
+                <Text style={[styles.statLabel, { color: '#3b82f6' }]}>All Time</Text>
+              </View>
+            </View>
+            <View style={[styles.statCard, { backgroundColor: isDark ? 'rgba(139,92,246,0.15)' : '#f5f3ff' }]}>
+              <View style={[styles.statIcon, { backgroundColor: isDark ? 'rgba(139,92,246,0.2)' : '#ede9fe' }]}>
+                <Receipt size={14} color="#8b5cf6" />
+              </View>
+              <View>
+                <Text style={[styles.statValue, { color: isDark ? '#fff' : '#4c1d95' }]}>{stats.count}</Text>
+                <Text style={[styles.statLabel, { color: '#8b5cf6' }]}>Records</Text>
+              </View>
+            </View>
+          </RNScrollView>
+        </Animated.View>
+
         {/* View Toggle */}
         <Animated.View
           layout={Layout.springify()}
           entering={FadeInDown.delay(100).duration(400).springify()}
-          style={[styles.viewToggle, { backgroundColor: isDark ? '#ffffff10' : '#00000005' }]}
+          style={[styles.viewToggle, { backgroundColor: isDark ? '#1e293b' : '#f1f5f9' }]}
         >
           <TouchableOpacity
             style={[styles.toggleBtn, viewMode === 'recent' && { backgroundColor: colors.primary }]}
@@ -244,6 +285,7 @@ export default function PaymentsScreen() {
 
         <View style={{ flex: 1 }}>
           {viewMode === 'recent' ? (
+            /* ===== RECENT TAB ===== */
             <Animated.View
               key="recent-tab"
               entering={FadeIn.duration(300)}
@@ -254,7 +296,8 @@ export default function PaymentsScreen() {
                 data={payments}
                 keyExtractor={(item) => item.id}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchPayments() }} tintColor={colors.primary} />}
-                contentContainerStyle={payments.length === 0 ? styles.emptyContent : undefined}
+                contentContainerStyle={payments.length === 0 ? styles.emptyContent : { paddingBottom: 24 }}
+                showsVerticalScrollIndicator={false}
                 ListEmptyComponent={
                   <EmptyState
                     icon={Receipt}
@@ -266,8 +309,7 @@ export default function PaymentsScreen() {
                 }
                 renderItem={({ item, index }) => (
                   <Animated.View 
-                    entering={FadeInDown.delay(Math.min(index * 100, 1000)).duration(400).springify()}
-                    style={{ backgroundColor: colors.surface }}
+                    entering={FadeInDown.delay(Math.min(index * 50, 500)).duration(350).springify()}
                   >
                     <PaymentCard
                       amount={item.amount}
@@ -280,6 +322,7 @@ export default function PaymentsScreen() {
               />
             </Animated.View>
           ) : (
+            /* ===== HISTORY TAB ===== */
             <Animated.View
               key="history-tab"
               entering={FadeIn.duration(300)}
@@ -289,13 +332,15 @@ export default function PaymentsScreen() {
               <RNScrollView
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchPayments() }} tintColor={colors.primary} />}
                 contentContainerStyle={styles.historyContent}
+                showsVerticalScrollIndicator={false}
               >
+                {/* Chart Card */}
                 <Animated.View
                   entering={FadeInDown.delay(100).duration(400).springify()}
                   style={[styles.chartCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
                 >
                   <View style={styles.chartHeader}>
-                    <View>
+                    <View style={{ flex: 1 }}>
                       <Text style={[styles.chartTitle, { color: colors.text }]}>12-Month Performance</Text>
                       {selectedMonth ? (
                         <Text style={[styles.chartWatcherValue, { color: colors.primary }]}>
@@ -305,8 +350,8 @@ export default function PaymentsScreen() {
                         <Text style={[styles.chartSubtitle, { color: colors.textTertiary }]}>Collection trends across the year</Text>
                       )}
                     </View>
-                    <View style={[styles.chartBadge, { backgroundColor: colors.primaryBg }]}>
-                      <Text style={[styles.chartBadgeText, { color: colors.primary }]}>Live Data</Text>
+                    <View style={[styles.chartBadge, { backgroundColor: `${colors.primary}15` }]}>
+                      <Text style={[styles.chartBadgeText, { color: colors.primary }]}>Live</Text>
                     </View>
                   </View>
 
@@ -335,8 +380,9 @@ export default function PaymentsScreen() {
                           labelColor: () => colors.textTertiary,
                           style: { borderRadius: 16 },
                           propsForDots: {
-                            r: "4",
-                            strokeWidth: "0",
+                            r: "5",
+                            strokeWidth: "2",
+                            stroke: colors.primary,
                           },
                           fillShadowGradientFrom: colors.primary,
                           fillShadowGradientTo: 'transparent',
@@ -356,30 +402,34 @@ export default function PaymentsScreen() {
                     </View>
                   </RNScrollView>
                   <Text style={[styles.panHint, { color: colors.textTertiary }]}>
-                     ← Swipe left/right to move through months →
+                     ← Swipe to navigate months →
                   </Text>
                 </Animated.View>
 
+                {/* Monthly Breakdown */}
                 <View style={styles.historyList}>
-                  <Text style={[styles.historyListTitle, { color: colors.text }]}>Collection Breakdown</Text>
-                  {historyData.slice().reverse().map((item, idx) => (
-                    <Animated.View
-                      key={idx}
-                      entering={FadeInDown.delay(200 + (idx * 50)).duration(400).springify()}
-                      style={[styles.historyItem, { borderBottomColor: colors.border }]}
-                    >
-                      <View style={styles.historyRowLeft}>
-                        <View style={[styles.monthIndicator, { backgroundColor: item.total > 0 ? colors.primary : colors.textTertiary + '20' }]} />
-                        <View>
-                          <Text style={[styles.historyItemLabel, { color: colors.text }]}>{item.fullLabel}</Text>
-                          <Text style={[styles.historyItemYear, { color: colors.textTertiary }]}>{item.year}</Text>
+                  <Text style={[styles.historyListTitle, { color: colors.text }]}>Monthly Breakdown</Text>
+                  {historyData.slice().reverse().map((item, idx) => {
+                    const maxTotal = Math.max(...historyData.map(h => h.total), 1)
+                    const barWidth = (item.total / maxTotal) * 100
+                    return (
+                      <Animated.View
+                        key={idx}
+                        entering={FadeInDown.delay(100 + (idx * 40)).duration(350).springify()}
+                        style={[styles.historyItem, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
+                      >
+                        <View style={styles.historyRowLeft}>
+                          <View style={[styles.monthDot, { backgroundColor: item.total > 0 ? colors.primary : colors.textTertiary + '30' }]} />
+                          <View>
+                            <Text style={[styles.historyItemLabel, { color: colors.text }]}>{item.fullLabel}</Text>
+                          </View>
                         </View>
-                      </View>
-                      <Text style={[styles.historyItemVal, { color: item.total > 0 ? colors.primary : colors.textTertiary }]}>
-                        {formatCurrency(item.total)}
-                      </Text>
-                    </Animated.View>
-                  ))}
+                        <Text style={[styles.historyItemVal, { color: item.total > 0 ? colors.primary : colors.textTertiary }]}>
+                          {formatCurrency(item.total)}
+                        </Text>
+                      </Animated.View>
+                    )
+                  })}
                 </View>
               </RNScrollView>
             </Animated.View>
@@ -395,7 +445,7 @@ export default function PaymentsScreen() {
                   <Text style={[styles.modalTitle, { color: colors.text }]}>Export Collections</Text>
                   <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>Select a collection period</Text>
                 </View>
-                <TouchableOpacity onPress={() => setShowExportModal(false)} style={styles.modalClose}>
+                <TouchableOpacity onPress={() => setShowExportModal(false)} style={[styles.modalClose, { backgroundColor: colors.background }]}>
                   <X size={20} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
@@ -418,7 +468,7 @@ export default function PaymentsScreen() {
                     disabled={exportLoading}
                   >
                     <View style={styles.optionLeft}>
-                      <View style={[styles.optionIcon, { backgroundColor: colors.primaryBg }]}>
+                      <View style={[styles.optionIcon, { backgroundColor: `${colors.primary}15` }]}>
                         <Calendar size={18} color={colors.primary} />
                       </View>
                       <Text style={[styles.optionLabel, { color: colors.text }]}>{opt.label}</Text>
@@ -429,20 +479,20 @@ export default function PaymentsScreen() {
 
                 {showCustomRange && (
                   <View style={[styles.customRangeBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                    <View style={styles.row}>
+                    <View style={styles.rangeRow}>
                       <TouchableOpacity
                         style={styles.dateBtn}
                         onPress={() => { setPickerMode('start'); setShowPicker(true) }}
                       >
-                        <Text style={styles.dateLabel}>Start</Text>
+                        <Text style={[styles.dateLabel, { color: colors.textTertiary }]}>Start</Text>
                         <Text style={[styles.dateVal, { color: colors.text }]}>{format(customRange.start, 'MMM dd, yyyy')}</Text>
                       </TouchableOpacity>
-                      <View style={styles.dateSep} />
+                      <View style={[styles.dateSep, { backgroundColor: colors.border }]} />
                       <TouchableOpacity
                         style={styles.dateBtn}
                         onPress={() => { setPickerMode('end'); setShowPicker(true) }}
                       >
-                        <Text style={styles.dateLabel}>End</Text>
+                        <Text style={[styles.dateLabel, { color: colors.textTertiary }]}>End</Text>
                         <Text style={[styles.dateVal, { color: colors.text }]}>{format(customRange.end, 'MMM dd, yyyy')}</Text>
                       </TouchableOpacity>
                     </View>
@@ -478,73 +528,68 @@ export default function PaymentsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 12,
-  },
+
+  // Header
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 },
+  greeting: { fontSize: 13, fontWeight: '500', marginBottom: 2 },
   title: { fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
-  headerActions: { flexDirection: 'row', gap: 10 },
-  exportButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
-  addButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  headerActions: { flexDirection: 'row', gap: 8 },
+  headerBtn: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'transparent', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3 },
+
+  // Stats
+  statsScroll: { paddingHorizontal: 16, gap: 12, paddingBottom: 16 },
+  statCard: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 14, borderRadius: 16 },
+  statIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  statValue: { fontSize: 16, fontWeight: '800', letterSpacing: -0.3 },
+  statLabel: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', marginTop: 1 },
+
+  // Toggle
+  viewToggle: { flexDirection: 'row', marginHorizontal: 16, marginBottom: 16, padding: 4, borderRadius: 14 },
+  toggleBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11, borderRadius: 12 },
+  toggleText: { fontSize: 14, fontWeight: '700' },
+
   emptyContent: { flexGrow: 1, padding: 16 },
-  viewToggle: { flexDirection: 'row', backgroundColor: '#f3f4f620', marginHorizontal: 16, marginBottom: 16, padding: 4, borderRadius: 12 },
-  toggleBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 10 },
-  toggleText: { fontSize: 14, fontWeight: '600' },
+
+  // History
   historyContent: { padding: 16, paddingBottom: 100 },
-  chartCard: { padding: 20, borderRadius: 24, borderWidth: 1, marginBottom: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12, elevation: 4 },
+  chartCard: { padding: 20, borderRadius: 24, borderWidth: 1, marginBottom: 24, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8 },
   chartHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
   chartTitle: { fontSize: 18, fontWeight: '800', letterSpacing: -0.5 },
   chartSubtitle: { fontSize: 13, marginTop: 2 },
-  chartBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  chartBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
   chartBadgeText: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase' },
   chartContainer: { alignItems: 'center' },
-  historyList: { gap: 4, paddingBottom: 20 },
-  historyListTitle: { fontSize: 20, fontWeight: '800', letterSpacing: -0.5, marginBottom: 16 },
-  historyItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 16, borderBottomWidth: 1 },
-  historyRowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  monthIndicator: { width: 4, height: 24, borderRadius: 2 },
-  historyItemLabel: { fontSize: 16, fontWeight: '600' },
-  historyItemYear: { fontSize: 12, marginTop: 1 },
-  historyItemVal: { fontSize: 16, fontWeight: '700' },
   chartWrapper: { paddingLeft: 8 },
   chartWatcherValue: { fontSize: 13, fontWeight: '700', marginTop: 2 },
   panHint: { fontSize: 10, textAlign: 'center', marginTop: 8, fontWeight: '600', opacity: 0.5 },
   chart: { marginTop: 4, borderRadius: 12, marginLeft: -16 },
+
+  historyList: { gap: 8, paddingBottom: 20 },
+  historyListTitle: { fontSize: 20, fontWeight: '800', letterSpacing: -0.5, marginBottom: 12 },
+  historyItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderRadius: 16, borderWidth: 1 },
+  historyRowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  monthDot: { width: 10, height: 10, borderRadius: 5 },
+  historyItemLabel: { fontSize: 15, fontWeight: '600' },
+  historyItemVal: { fontSize: 16, fontWeight: '800' },
+
   // Modal
   modalOverlay: { flex: 1, justifyContent: 'flex-end' },
   modalContent: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  modalTitle: { fontSize: 20, fontWeight: '700' },
+  modalTitle: { fontSize: 20, fontWeight: '800' },
   modalSubtitle: { fontSize: 14, marginTop: 2 },
-  modalClose: { padding: 4 },
+  modalClose: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   optionsContainer: { gap: 4 },
   optionItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderBottomWidth: 1 },
   optionLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   optionIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   optionLabel: { fontSize: 16, fontWeight: '500' },
   customRangeBox: { marginTop: 12, padding: 16, borderRadius: 16, borderWidth: 1, gap: 16 },
-  row: { flexDirection: 'row', alignItems: 'center' },
+  rangeRow: { flexDirection: 'row', alignItems: 'center' },
   dateBtn: { flex: 1, gap: 4 },
-  dateLabel: { fontSize: 12, color: '#888', textTransform: 'uppercase' },
+  dateLabel: { fontSize: 12, textTransform: 'uppercase', fontWeight: '600' },
   dateVal: { fontSize: 15, fontWeight: '600' },
-  dateSep: { width: 1, height: 24, backgroundColor: '#eee', marginHorizontal: 16 },
+  dateSep: { width: 1, height: 24, marginHorizontal: 16 },
   generateBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 14, borderRadius: 12 },
   generateBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 })

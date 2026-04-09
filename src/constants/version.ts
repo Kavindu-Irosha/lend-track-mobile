@@ -1,5 +1,5 @@
-export const APP_VERSION = "1.0.5"
-export const BUILD_NUMBER = "2026.04.08.01"
+export const APP_VERSION = "2.0.0"
+export const BUILD_NUMBER = "2026.04.10.01"
 
 export type ChangelogItem = {
   version: string;
@@ -9,6 +9,36 @@ export type ChangelogItem = {
 }
 
 export const CHANGELOG: ChangelogItem[] = [
+  {
+    version: "2.0.0",
+    date: "2026-04-10",
+    title: "Elite FinTech Command Center",
+    notes: [
+      "Complete UI overhaul across all screens — premium dark/light mode design system.",
+      "Dashboard Hero Card with dynamic glow, dual-stream Cash Flow chart, and social-feed activity timeline.",
+      "Customer Directory: rich avatar cards, inline financial quick-view, and filter tabs with live count badges.",
+      "Loans Index: portfolio summary ribbon, status filter tabs with auto-sizing scroll, and staggered card animations.",
+      "Loan Wizard: 3-step visual progress indicator, live EMI calculator hero card, and polished success state.",
+      "Payments Center: stats strip (Today/All-Time/Records), card-based monthly breakdown, and premium chart interactions.",
+      "Record Payment: rich loan selector with quick stats, double-ring success animation, and receipt summary card.",
+      "Add Customer: sectioned layout (Personal/Identity/Details), side-by-side NIC capture with verified badges.",
+      "Alerts Center: priority-sorted cards with severity indicators, urgency tags, and quick-action buttons.",
+      "Settings Hub: glassmorphic profile card, segmented theme controller, security vault, and full changelog viewer.",
+      "Custom Alert & Toast: triple-ring icon system, bouncing animations, colored accent bars, and elevated shadows.",
+    ]
+  },
+  {
+    version: "1.0.6",
+    date: "2026-04-09",
+    title: "Enterprise Security Hardening",
+    notes: [
+      "Enabled Supabase Row-Level Security (RLS) for strict multi-tenant isolation.",
+      "Implemented localized 5-strike brute-force login lockouts.",
+      "Added Data Masking (PII) to visually obscure Phone and NIC metrics.",
+      "Integrated Babel stripping to remove internal logs from production builds.",
+      "Strict logical bounding on negative loans and aggressive payment injections."
+    ]
+  },
   {
     version: "1.0.5",
     date: "2026-04-08",

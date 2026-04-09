@@ -1,11 +1,12 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Stack, useRouter, useSegments } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import * as SplashScreen from 'expo-splash-screen'
 import * as NavigationBar from 'expo-navigation-bar'
-import { Platform, View } from 'react-native'
+import { Platform, View, AppState, type AppStateStatus } from 'react-native'
 import { AuthProvider, useAuth } from '@/src/context/AuthContext'
 import { ThemeProvider, useTheme } from '@/src/context/ThemeContext'
+import { SettingsProvider, useSettings } from '@/src/context/SettingsContext'
 import { AlertProvider } from '@/src/context/AlertContext'
 import { SecurityProvider, useSecurity } from '@/src/context/SecurityContext'
 import CustomAlert from '@/src/components/CustomAlert'
@@ -22,10 +23,40 @@ function RootLayoutNav() {
   const { colors, isDark } = useTheme()
   const segments = useSegments()
   const router = useRouter()
+  const { settings } = useSettings()
   const [showSplash, setShowSplash] = useState(true)
   const [appReady, setAppReady] = useState(false)
   const isAuthenticating = React.useRef(false)
   const [canPromptBio, setCanPromptBio] = useState(false)
+
+  // ---- Auto-Lock Timer ----
+  const backgroundTimestamp = useRef<number>(0)
+  const lastActivityRef = useRef<number>(Date.now())
+  const autoLockIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Track background/foreground
+  useEffect(() => {
+    const timerMinutes = settings.autoLockTimer
+    if (timerMinutes === 'off' || !isBiometricEnabled || !user) return
+
+    const timeoutMs = parseInt(timerMinutes) * 60 * 1000
+
+    const handleAppState = (nextState: AppStateStatus) => {
+      if (nextState === 'background' || nextState === 'inactive') {
+        backgroundTimestamp.current = Date.now()
+      } else if (nextState === 'active' && backgroundTimestamp.current > 0) {
+        const elapsed = Date.now() - backgroundTimestamp.current
+        backgroundTimestamp.current = 0
+        if (elapsed >= timeoutMs) {
+          // Lock the app — require re-auth
+          authenticate()
+        }
+      }
+    }
+
+    const sub = AppState.addEventListener('change', handleAppState)
+    return () => sub.remove()
+  }, [settings.autoLockTimer, isBiometricEnabled, user])
 
   // Delay biometric prompt slightly after start to allow native bridge to settle
   useEffect(() => {
@@ -122,13 +153,15 @@ function RootLayoutNav() {
 export default function RootLayout() {
   return (
     <ThemeProvider>
-      <AlertProvider>
-        <SecurityProvider>
-          <AuthProvider>
-            <RootLayoutNav />
-          </AuthProvider>
-        </SecurityProvider>
-      </AlertProvider>
+      <SettingsProvider>
+        <AlertProvider>
+          <SecurityProvider>
+            <AuthProvider>
+              <RootLayoutNav />
+            </AuthProvider>
+          </SecurityProvider>
+        </AlertProvider>
+      </SettingsProvider>
     </ThemeProvider>
   )
 }

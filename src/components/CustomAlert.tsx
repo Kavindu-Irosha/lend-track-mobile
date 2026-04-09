@@ -11,8 +11,14 @@ import {
 import Animated, {
   FadeIn,
   FadeOut,
-  SlideInUp,
-  SlideOutDown,
+  ZoomIn,
+  ZoomOut,
+  FadeInDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withSequence,
+  withDelay,
 } from 'react-native-reanimated'
 import { useTheme } from '@/src/context/ThemeContext'
 import { useAlert } from '@/src/context/AlertContext'
@@ -21,39 +27,57 @@ import {
   CheckCircle2,
   AlertTriangle,
   XCircle,
+  ShieldAlert,
   LucideIcon,
 } from 'lucide-react-native'
 import * as Haptics from 'expo-haptics'
 
 const { width } = Dimensions.get('window')
 
-const ALERT_ICONS: Record<string, { Icon: LucideIcon; color: string; haptic: Haptics.NotificationFeedbackType }> = {
-  info: { Icon: Info, color: '#3b82f6', haptic: Haptics.NotificationFeedbackType.Success },
-  success: { Icon: CheckCircle2, color: '#22c55e', haptic: Haptics.NotificationFeedbackType.Success },
-  warning: { Icon: AlertTriangle, color: '#f59e0b', haptic: Haptics.NotificationFeedbackType.Warning },
-  error: { Icon: XCircle, color: '#ef4444', haptic: Haptics.NotificationFeedbackType.Error },
+const ALERT_CONFIG: Record<string, { 
+  Icon: LucideIcon; 
+  color: string; 
+  bgGradient: string;
+  haptic: Haptics.NotificationFeedbackType 
+}> = {
+  info: { Icon: Info, color: '#3b82f6', bgGradient: 'rgba(59,130,246,0.12)', haptic: Haptics.NotificationFeedbackType.Success },
+  success: { Icon: CheckCircle2, color: '#10b981', bgGradient: 'rgba(16,185,129,0.12)', haptic: Haptics.NotificationFeedbackType.Success },
+  warning: { Icon: ShieldAlert, color: '#f59e0b', bgGradient: 'rgba(245,158,11,0.12)', haptic: Haptics.NotificationFeedbackType.Warning },
+  error: { Icon: XCircle, color: '#ef4444', bgGradient: 'rgba(239,68,68,0.12)', haptic: Haptics.NotificationFeedbackType.Error },
 }
 
 export default function CustomAlert() {
   const { colors, isDark } = useTheme()
   const { alert, visible, hideAlert } = useAlert()
+  const iconScale = useSharedValue(0)
 
   useEffect(() => {
     if (visible && alert?.type) {
-      const hapticType = ALERT_ICONS[alert.type]?.haptic || Haptics.NotificationFeedbackType.Success
+      const hapticType = ALERT_CONFIG[alert.type]?.haptic || Haptics.NotificationFeedbackType.Success
       Haptics.notificationAsync(hapticType)
+      // Bounce animation for icon
+      iconScale.value = withSequence(
+        withSpring(1.3, { damping: 8, stiffness: 200 }),
+        withSpring(1, { damping: 12 })
+      )
+    } else {
+      iconScale.value = 0
     }
   }, [visible, alert?.type])
 
+  const animatedIconStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: iconScale.value }]
+  }))
+
   if (!alert) return null
 
-  const typeData = ALERT_ICONS[alert.type || 'info']
-  const Icon = typeData.Icon
+  const config = ALERT_CONFIG[alert.type || 'info']
+  const Icon = config.Icon
 
   const handleButtonPress = (onPress?: () => void) => {
     hideAlert()
     if (onPress) {
-      setTimeout(onPress, 150) // Slight delay to let modal close
+      setTimeout(onPress, 150)
     }
   }
 
@@ -66,32 +90,44 @@ export default function CustomAlert() {
     >
       <View style={styles.overlay}>
         <Animated.View 
-          entering={FadeIn} 
-          exiting={FadeOut} 
-          style={[StyleSheet.absoluteFill, { backgroundColor: colors.overlay }]}
+          entering={FadeIn.duration(200)} 
+          exiting={FadeOut.duration(150)} 
+          style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.5)' }]}
         >
           <Pressable style={{ flex: 1 }} onPress={hideAlert} />
         </Animated.View>
 
         <Animated.View
-          entering={SlideInUp.springify().damping(20).stiffness(150)}
-          exiting={SlideOutDown}
+          entering={ZoomIn.duration(300).springify().damping(18).stiffness(200)}
+          exiting={ZoomOut.duration(200)}
           style={[
             styles.alertCard,
-            { backgroundColor: colors.surface, borderColor: colors.cardBorder }
+            { backgroundColor: colors.surface, borderColor: isDark ? '#334155' : '#e2e8f0' }
           ]}
         >
-          <View style={[styles.iconWrapper, { backgroundColor: typeData.color + '15' }]}>
-            <Icon size={32} color={typeData.color} />
+          {/* Color accent bar at top */}
+          <View style={[styles.accentBar, { backgroundColor: config.color }]} />
+
+          {/* Icon with double ring */}
+          <View style={[styles.iconOuterRing, { backgroundColor: config.bgGradient }]}>
+            <Animated.View style={[styles.iconInnerRing, { backgroundColor: config.color + '20' }, animatedIconStyle]}>
+              <View style={[styles.iconCircle, { backgroundColor: config.color }]}>
+                <Icon size={28} color="#fff" />
+              </View>
+            </Animated.View>
           </View>
 
+          {/* Title */}
           <Text style={[styles.title, { color: colors.text }]}>{alert.title}</Text>
+
+          {/* Message */}
           {alert.message && (
             <Text style={[styles.message, { color: colors.textSecondary }]}>
               {alert.message}
             </Text>
           )}
 
+          {/* Buttons */}
           <View style={styles.buttonContainer}>
             {alert.buttons ? (
               alert.buttons.map((btn, index) => {
@@ -104,9 +140,9 @@ export default function CustomAlert() {
                     style={[
                       styles.button,
                       index > 0 && styles.marginLeft,
-                      isDestructive ? { backgroundColor: colors.error } :
-                      isCancel ? { backgroundColor: colors.border } :
-                      { backgroundColor: colors.primary }
+                      isDestructive ? { backgroundColor: '#ef4444' } :
+                      isCancel ? { backgroundColor: isDark ? '#334155' : '#f1f5f9', borderWidth: 1, borderColor: isDark ? '#475569' : '#e2e8f0' } :
+                      { backgroundColor: config.color }
                     ]}
                     onPress={() => handleButtonPress(btn.onPress)}
                     activeOpacity={0.8}
@@ -122,11 +158,11 @@ export default function CustomAlert() {
               })
             ) : (
               <TouchableOpacity
-                style={[styles.button, { backgroundColor: colors.primary, flex: 1 }]}
+                style={[styles.button, { backgroundColor: config.color, flex: 1 }]}
                 onPress={() => handleButtonPress()}
                 activeOpacity={0.8}
               >
-                <Text style={styles.buttonText}>OK</Text>
+                <Text style={[styles.buttonText, { color: '#fff' }]}>Got it</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -141,56 +177,85 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: 28,
   },
   alertCard: {
-    width: Math.min(width - 48, 340),
-    borderRadius: 24,
-    padding: 24,
+    width: Math.min(width - 56, 340),
+    borderRadius: 28,
+    paddingTop: 0,
+    paddingHorizontal: 28,
+    paddingBottom: 28,
     alignItems: 'center',
     borderWidth: 1,
-    elevation: 8,
+    elevation: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 24,
+    overflow: 'hidden',
   },
-  iconWrapper: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+  accentBar: {
+    width: '120%',
+    height: 4,
+    marginBottom: 24,
+  },
+  iconOuterRing: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
+  },
+  iconInnerRing: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 22,
+    fontWeight: '800',
     textAlign: 'center',
     marginBottom: 8,
+    letterSpacing: -0.3,
   },
   message: {
-    fontSize: 15,
+    fontSize: 14,
     textAlign: 'center',
     lineHeight: 22,
-    marginBottom: 24,
+    marginBottom: 28,
   },
   buttonContainer: {
     flexDirection: 'row',
     width: '100%',
+    gap: 10,
   },
   button: {
     flex: 1,
-    height: 48,
-    borderRadius: 12,
+    height: 52,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
   },
   marginLeft: {
-    marginLeft: 12,
+    marginLeft: 0,
   },
   buttonText: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 })

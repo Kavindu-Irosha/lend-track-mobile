@@ -1,9 +1,9 @@
 import React from 'react'
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
 import { useTheme } from '@/src/context/ThemeContext'
-import { formatCurrency } from '@/src/lib/utils'
+import { formatCurrency, formatAppDate } from '@/src/lib/utils'
+import { useSettings } from '@/src/context/SettingsContext'
 import { Calendar, User, ChevronRight, Trash2 } from 'lucide-react-native'
-import { format } from 'date-fns'
 import * as Haptics from 'expo-haptics'
 
 interface LoanCardProps {
@@ -30,6 +30,8 @@ export default function LoanCard({
   onDelete,
 }: LoanCardProps) {
   const { colors, isDark } = useTheme()
+  const { settings } = useSettings()
+  const compact = settings.compactMode
 
   const progress = Math.min(paid / total, 1)
   const isOverdue = status === 'Overdue'
@@ -49,7 +51,10 @@ export default function LoanCard({
         { 
           backgroundColor: colors.surface, 
           borderColor: isOverdue ? colors.error : colors.cardBorder,
-          borderWidth: isOverdue ? 1 : 1 
+          borderWidth: 1,
+          padding: compact ? 12 : 16,
+          marginBottom: compact ? 10 : 16,
+          borderRadius: compact ? 16 : 20,
         }
       ]}
       onPress={onPress}
@@ -84,23 +89,25 @@ export default function LoanCard({
         </Text>
       </View>
 
-      <View style={styles.progressSection}>
-        <View style={styles.progressHeader}>
-          <Text style={[styles.progressLabel, { color: colors.textSecondary }]}>Repayment Progress</Text>
-          <Text style={[styles.progressPercent, { color: colors.primary }]}>{Math.round(progress * 100)}%</Text>
+      {!compact && (
+        <View style={styles.progressSection}>
+          <View style={styles.progressHeader}>
+            <Text style={[styles.progressLabel, { color: colors.textSecondary }]}>Repayment Progress</Text>
+            <Text style={[styles.progressPercent, { color: colors.primary }]}>{Math.round(progress * 100)}%</Text>
+          </View>
+          <View style={[styles.progressBarBg, { backgroundColor: colors.border }]}>
+            <View 
+              style={[
+                styles.progressBarFill, 
+                { 
+                  backgroundColor: isCompleted ? colors.success : colors.primary, 
+                  width: `${progress * 100}%` 
+                }
+              ]} 
+            />
+          </View>
         </View>
-        <View style={[styles.progressBarBg, { backgroundColor: colors.border }]}>
-          <View 
-            style={[
-              styles.progressBarFill, 
-              { 
-                backgroundColor: isCompleted ? colors.success : colors.primary, 
-                width: `${progress * 100}%` 
-              }
-            ]} 
-          />
-        </View>
-      </View>
+      )}
 
       <View style={styles.detailsGrid}>
         <View style={styles.detailItem}>
@@ -114,7 +121,7 @@ export default function LoanCard({
           <View style={styles.dateRow}>
             <Calendar size={12} color={isOverdue ? colors.error : colors.textSecondary} />
             <Text style={[styles.detailValue, { color: isOverdue ? colors.error : colors.textSecondary, fontSize: 13 }]}>
-              {format(new Date(dueDate), 'MMM d, yyyy')}
+              {formatAppDate(new Date(dueDate))}
             </Text>
           </View>
         </View>

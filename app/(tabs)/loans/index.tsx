@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState, useMemo } from 'react'
 import {
   View,
   Text,
@@ -8,8 +8,9 @@ import {
   TextInput,
   RefreshControl,
   Modal,
+  ScrollView,
 } from 'react-native'
-import Animated, { FadeInDown } from 'react-native-reanimated'
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated'
 import { useFocusEffect, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTheme } from '@/src/context/ThemeContext'
@@ -17,7 +18,10 @@ import { supabase } from '@/src/lib/supabase'
 import LoanCard from '@/src/components/LoanCard'
 import LoadingSpinner from '@/src/components/LoadingSpinner'
 import EmptyState from '@/src/components/EmptyState'
-import { Plus, Search, CreditCard, Download, Calendar, X, ChevronRight, Trash2 } from 'lucide-react-native'
+import { 
+  Plus, Search, CreditCard, Download, Calendar, X, ChevronRight, 
+  Trash2, Filter, TrendingUp, AlertCircle, CheckCircle2, Wallet, Activity 
+} from 'lucide-react-native'
 import { generateCollectionReport } from '@/src/lib/reports'
 import * as Haptics from 'expo-haptics'
 import { format, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns'
@@ -25,8 +29,10 @@ import DateTimePicker from '@react-native-community/datetimepicker'
 import { formatCurrency } from '@/src/lib/utils'
 import { useAlert } from '@/src/context/AlertContext'
 
+type LoanFilter = 'all' | 'active' | 'overdue' | 'completed'
+
 export default function LoansScreen() {
-  const { colors } = useTheme()
+  const { colors, isDark } = useTheme()
   const { showAlert } = useAlert()
   const router = useRouter()
   const [loading, setLoading] = useState(true)
@@ -35,6 +41,7 @@ export default function LoansScreen() {
   const [query, setQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [focusKey, setFocusKey] = useState(0)
+  const [activeFilter, setActiveFilter] = useState<LoanFilter>('all')
 
   // Report Modal State
   const [showExportModal, setShowExportModal] = useState(false)
@@ -94,6 +101,33 @@ export default function LoansScreen() {
     }
   }, [debouncedQuery])
 
+  // Compute portfolio stats
+  const stats = useMemo(() => {
+    let totalDisbursed = 0, totalCollected = 0, totalOutstanding = 0, totalOverdue = 0
+    let activeCount = 0, overdueCount = 0, completedCount = 0
+    loans.forEach(loan => {
+      totalDisbursed += loan.total
+      totalCollected += loan.paid
+      if (loan.computedStatus === 'Active') { activeCount++; totalOutstanding += loan.remaining }
+      else if (loan.computedStatus === 'Overdue') { overdueCount++; totalOverdue += loan.remaining; totalOutstanding += loan.remaining }
+      else if (loan.computedStatus === 'Completed') { completedCount++ }
+    })
+    return { totalDisbursed, totalCollected, totalOutstanding, totalOverdue, activeCount, overdueCount, completedCount }
+  }, [loans])
+
+  // Filter loans based on active tab
+  const filteredLoans = useMemo(() => {
+    if (activeFilter === 'all') return loans
+    return loans.filter(l => l.computedStatus.toLowerCase() === activeFilter)
+  }, [loans, activeFilter])
+
+  const filterCounts = useMemo(() => ({
+    all: loans.length,
+    active: stats.activeCount,
+    overdue: stats.overdueCount,
+    completed: stats.completedCount,
+  }), [loans.length, stats])
+
   const handleDownloadReport = async (rangeType: 'today' | '7days' | 'month' | 'lastmonth' | 'custom') => {
     setExportLoading(true)
     try {
@@ -131,19 +165,19 @@ export default function LoansScreen() {
       const { data: payments } = await supabase
         .from('payments')
         .select('*, loans(id, customers(name))')
-        .gte('payment_date', format(startDate, 'yyyy-MM-dd'))
+        .gte('payment_date', format(startDate!, 'yyyy-MM-dd'))
         .lte('payment_date', format(endDate, 'yyyy-MM-dd'))
       
       if (!payments || payments.length === 0) {
         showAlert({
           title: 'No Data',
-          message: `No payments found for ${label}`,
+          message: `No payments found for ${label!}`,
           type: 'info'
         })
         return
       }
 
-      await generateCollectionReport(payments, label)
+      await generateCollectionReport(payments, label!)
       setShowExportModal(false)
     } finally {
       setExportLoading(false)
@@ -199,18 +233,23 @@ export default function LoansScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <Animated.View key={focusKey} style={{ flex: 1 }}>
+
+      {/* Premium Header */}
       <Animated.View entering={FadeInDown.duration(400).springify()} style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>All Loans</Text>
+        <View>
+          <Text style={[styles.greeting, { color: colors.textSecondary }]}>Portfolio</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Loan Management</Text>
+        </View>
         <View style={styles.headerActions}>
           <TouchableOpacity
-            style={[styles.reportButton, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
+            style={[styles.headerBtn, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
             onPress={() => setShowExportModal(true)}
             activeOpacity={0.7}
           >
             <Download size={18} color={colors.primary} />
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.addButton, { backgroundColor: colors.primary }]}
+            style={[styles.headerBtn, { backgroundColor: colors.primary }]}
             onPress={() => router.push('/(tabs)/loans/new')}
             activeOpacity={0.8}
           >
@@ -219,50 +258,129 @@ export default function LoansScreen() {
         </View>
       </Animated.View>
 
-      <Animated.View entering={FadeInDown.delay(100).duration(400).springify()} style={[styles.searchContainer, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
-        <Search size={18} color={colors.textTertiary} />
-        <TextInput
-          style={[styles.searchInput, { color: colors.text }]}
-          placeholder="Search by customer..."
-          placeholderTextColor={colors.textTertiary}
-          value={query}
-          onChangeText={setQuery}
-          returnKeyType="search"
-        />
+      {/* Portfolio Summary Strip */}
+      <Animated.View entering={FadeInDown.delay(50).duration(400).springify()}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.summaryScroll}>
+          <View style={[styles.summaryCard, { backgroundColor: isDark ? 'rgba(59,130,246,0.15)' : '#eff6ff' }]}>
+            <View style={[styles.summaryIcon, { backgroundColor: isDark ? 'rgba(59,130,246,0.2)' : '#dbeafe' }]}>
+              <CreditCard size={16} color="#3b82f6" />
+            </View>
+            <View>
+              <Text style={[styles.summaryValue, { color: isDark ? '#fff' : '#1e3a8a' }]}>{formatCurrency(stats.totalDisbursed)}</Text>
+              <Text style={[styles.summaryLabel, { color: '#3b82f6' }]}>Disbursed</Text>
+            </View>
+          </View>
+          <View style={[styles.summaryCard, { backgroundColor: isDark ? 'rgba(16,185,129,0.15)' : '#ecfdf5' }]}>
+            <View style={[styles.summaryIcon, { backgroundColor: isDark ? 'rgba(16,185,129,0.2)' : '#d1fae5' }]}>
+              <TrendingUp size={16} color="#10b981" />
+            </View>
+            <View>
+              <Text style={[styles.summaryValue, { color: isDark ? '#fff' : '#064e3b' }]}>{formatCurrency(stats.totalCollected)}</Text>
+              <Text style={[styles.summaryLabel, { color: '#10b981' }]}>Collected</Text>
+            </View>
+          </View>
+          <View style={[styles.summaryCard, { backgroundColor: isDark ? 'rgba(239,68,68,0.15)' : '#fef2f2' }]}>
+            <View style={[styles.summaryIcon, { backgroundColor: isDark ? 'rgba(239,68,68,0.2)' : '#fecaca' }]}>
+              <Wallet size={16} color="#ef4444" />
+            </View>
+            <View>
+              <Text style={[styles.summaryValue, { color: isDark ? '#fff' : '#7f1d1d' }]}>{formatCurrency(stats.totalOutstanding)}</Text>
+              <Text style={[styles.summaryLabel, { color: '#ef4444' }]}>Outstanding</Text>
+            </View>
+          </View>
+        </ScrollView>
       </Animated.View>
 
-      <Animated.View entering={FadeInDown.delay(200).duration(400).springify()} style={{ flex: 1 }}>
-        <FlatList
-          data={loans}
-          keyExtractor={(item) => item.id}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchLoans() }} tintColor={colors.primary} />}
-          contentContainerStyle={loans.length === 0 ? styles.emptyContent : undefined}
-          ListEmptyComponent={
-            <EmptyState
-              icon={CreditCard}
-              title="No loans found"
-              description={query ? "No loans match your search criteria." : "Once you issue a loan, it will appear here."}
-              actionLabel={query ? undefined : "New Loan"}
-              onAction={query ? undefined : () => router.push('/(tabs)/loans/new')}
-            />
-          }
-          renderItem={({ item }) => (
-            <View style={[{ backgroundColor: colors.surface }]}>
-              <LoanCard
-                customerName={item.customerName}
-                total={item.total}
-                paid={item.paid}
-                remaining={item.remaining}
-                status={item.computedStatus}
-                dueDate={item.due_date}
-                onPress={() => router.push(`/(tabs)/customers/${item.customerId}`)}
-                onPay={item.remaining > 0 ? () => router.push(`/(tabs)/payments/new?loan_id=${item.id}`) : undefined}
-                onDelete={() => handleDeleteLoan(item.id)}
-              />
-            </View>
+      {/* Search Bar */}
+      <Animated.View entering={FadeInDown.delay(100).duration(400).springify()} style={styles.searchWrap}>
+        <View style={[styles.searchContainer, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          <Search size={18} color={colors.textTertiary} />
+          <TextInput
+            style={[styles.searchInput, { color: colors.text }]}
+            placeholder="Search by customer name..."
+            placeholderTextColor={colors.textTertiary}
+            value={query}
+            onChangeText={setQuery}
+            returnKeyType="search"
+          />
+          {query.length > 0 && (
+            <TouchableOpacity onPress={() => setQuery('')}>
+              <X size={18} color={colors.textTertiary} />
+            </TouchableOpacity>
           )}
-        />
+        </View>
       </Animated.View>
+
+      {/* Status Filter Tabs */}
+      <Animated.View entering={FadeInDown.delay(150).duration(400).springify()}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+        {(['all', 'active', 'overdue', 'completed'] as LoanFilter[]).map((filter) => {
+          const isActive = activeFilter === filter
+          const filterColors: Record<string, string> = {
+            all: colors.primary,
+            active: '#3b82f6',
+            overdue: '#ef4444',
+            completed: '#10b981'
+          }
+          return (
+            <TouchableOpacity
+              key={filter}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setActiveFilter(filter) }}
+              style={[
+                styles.filterTab,
+                { 
+                  backgroundColor: isActive ? filterColors[filter] : colors.surface, 
+                  borderColor: isActive ? filterColors[filter] : colors.cardBorder 
+                }
+              ]}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.filterTabText, { color: isActive ? '#fff' : colors.textTertiary }]}>
+                {filter.charAt(0).toUpperCase() + filter.slice(1)}
+              </Text>
+              <View style={[styles.filterCount, { backgroundColor: isActive ? 'rgba(255,255,255,0.25)' : `${filterColors[filter]}15` }]}>
+                <Text style={[styles.filterCountText, { color: isActive ? '#fff' : filterColors[filter] }]}>
+                  {filterCounts[filter]}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          )
+        })}
+        </ScrollView>
+      </Animated.View>
+
+      {/* Loan List */}
+      <FlatList
+        data={filteredLoans}
+        keyExtractor={(item) => item.id}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchLoans() }} tintColor={colors.primary} />}
+        contentContainerStyle={filteredLoans.length === 0 ? styles.emptyContent : { paddingHorizontal: 16, paddingBottom: 24 }}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <EmptyState
+            icon={CreditCard}
+            title={activeFilter !== 'all' ? `No ${activeFilter} loans` : "No loans found"}
+            description={query ? "No loans match your search criteria." : activeFilter !== 'all' ? `You have no ${activeFilter} loans at the moment.` : "Once you issue a loan, it will appear here."}
+            actionLabel={query || activeFilter !== 'all' ? undefined : "New Loan"}
+            onAction={query || activeFilter !== 'all' ? undefined : () => router.push('/(tabs)/loans/new')}
+          />
+        }
+        renderItem={({ item, index }) => (
+          <Animated.View entering={FadeInDown.delay(index * 40).duration(350).springify()}>
+            <LoanCard
+              customerName={item.customerName}
+              total={item.total}
+              paid={item.paid}
+              remaining={item.remaining}
+              status={item.computedStatus}
+              dueDate={item.due_date}
+              onPress={() => router.push(`/(tabs)/customers/${item.customerId}`)}
+              onPay={item.remaining > 0 ? () => router.push(`/(tabs)/payments/new?loan_id=${item.id}`) : undefined}
+              onDelete={() => handleDeleteLoan(item.id)}
+            />
+          </Animated.View>
+        )}
+      />
 
       {/* Export Selection Modal */}
       <Modal visible={showExportModal} transparent animationType="fade">
@@ -273,7 +391,7 @@ export default function LoansScreen() {
                 <Text style={[styles.modalTitle, { color: colors.text }]}>Export Report</Text>
                 <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>Select a collection period</Text>
               </View>
-              <TouchableOpacity onPress={() => setShowExportModal(false)} style={styles.modalClose}>
+              <TouchableOpacity onPress={() => setShowExportModal(false)} style={[styles.modalClose, { backgroundColor: colors.background }]}>
                 <X size={20} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
@@ -358,21 +476,43 @@ export default function LoansScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 },
+  
+  // Header
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 },
+  greeting: { fontSize: 13, fontWeight: '500', marginBottom: 2 },
   title: { fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  reportButton: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
-  addButton: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  searchContainer: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 12, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1, gap: 10 },
-  searchInput: { flex: 1, paddingVertical: 12, fontSize: 15 },
+  headerBtn: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'transparent', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3 },
+  
+  // Summary Strip
+  summaryScroll: { paddingHorizontal: 16, gap: 12, paddingBottom: 16 },
+  summaryCard: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 14, borderRadius: 16 },
+  summaryIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  summaryValue: { fontSize: 16, fontWeight: '800', letterSpacing: -0.3 },
+  summaryLabel: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', marginTop: 1 },
+
+  // Search
+  searchWrap: { paddingHorizontal: 16, marginBottom: 12 },
+  searchContainer: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, borderRadius: 14, borderWidth: 1, gap: 10 },
+  searchInput: { flex: 1, paddingVertical: 13, fontSize: 15 },
+
+  // Filters
+  filterRow: { paddingHorizontal: 16, gap: 10, marginBottom: 16 },
+  filterTab: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1 },
+  filterTabText: { fontSize: 12, fontWeight: '700' },
+  filterCount: { paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6, minWidth: 22, alignItems: 'center' },
+  filterCountText: { fontSize: 11, fontWeight: '800' },
+
+  // List
   emptyContent: { flexGrow: 1, padding: 16 },
+
   // Modal
   modalOverlay: { flex: 1, justifyContent: 'flex-end' },
   modalContent: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  modalTitle: { fontSize: 20, fontWeight: '700' },
+  modalTitle: { fontSize: 20, fontWeight: '800' },
   modalSubtitle: { fontSize: 14, marginTop: 2 },
-  modalClose: { padding: 4 },
+  modalClose: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   optionsContainer: { gap: 4 },
   optionItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderBottomWidth: 1 },
   optionLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
@@ -381,7 +521,7 @@ const styles = StyleSheet.create({
   customRangeBox: { marginTop: 12, padding: 16, borderRadius: 16, borderWidth: 1, gap: 16 },
   row: { flexDirection: 'row', alignItems: 'center' },
   dateBtn: { flex: 1, gap: 4 },
-  dateLabel: { fontSize: 12, color: '#888', textTransform: 'uppercase' },
+  dateLabel: { fontSize: 12, color: '#888', textTransform: 'uppercase', fontWeight: '600' },
   dateVal: { fontSize: 15, fontWeight: '600' },
   dateSep: { width: 1, height: 24, backgroundColor: '#eee', marginHorizontal: 16 },
   generateBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 14, borderRadius: 12 },
