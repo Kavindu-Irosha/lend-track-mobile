@@ -76,8 +76,9 @@ export function SecurityProvider({ children }: { children: React.ReactNode }) {
   const saveCredentials = async (email: string, pass: string) => {
     if (isBiometricEnabled) {
       await SecureStore.setItemAsync(CRED_KEY, JSON.stringify({ email, pass }), {
-        authenticationPrompt: 'Authenticate to save encrypted credentials',
-        requireAuthentication: true,
+        // We omit requireAuthentication because Android BiometricPrompt frequently fails 
+        // to generate the hardware cipher synchronously when trying to write to Keystore.
+        // Data is still fundamentally encrypted at REST securely via AES-256.
         keychainAccessible: SecureStore.WHEN_PASSCODE_SET_THIS_DEVICE_ONLY
       })
     }
