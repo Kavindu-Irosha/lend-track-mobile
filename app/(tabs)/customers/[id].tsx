@@ -5,7 +5,7 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTheme } from '@/src/context/ThemeContext'
 import { supabase } from '@/src/lib/supabase'
-import { formatCurrency, formatPhoneSriLanka, maskPhone, triggerHapticImpact, triggerHapticNotification } from '@/src/lib/utils'
+import { formatCurrency, formatPhoneSriLanka, maskPhone, triggerHapticImpact, triggerHapticNotification, ImpactStyle, NotificationType } from '@/src/lib/utils'
 import StatsCard from '@/src/components/StatsCard'
 import LoanCard from '@/src/components/LoanCard'
 import LoadingSpinner from '@/src/components/LoadingSpinner'
@@ -31,7 +31,6 @@ import {
 } from 'lucide-react-native'
 import { format } from 'date-fns'
 import { generateCustomerStatement } from '@/src/lib/reports'
-import * as Haptics from 'expo-haptics'
 import { useAlert } from '@/src/context/AlertContext'
 import { useSettings } from '@/src/context/SettingsContext'
 
@@ -245,11 +244,11 @@ export default function CustomerDetailScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              triggerHapticImpact(Haptics.ImpactFeedbackStyle.Heavy)
+              triggerHapticImpact(ImpactStyle.Heavy)
               const { error } = await supabase.from('loans').delete().eq('id', loanId)
               if (error) throw error
 
-              triggerHapticNotification(Haptics.NotificationFeedbackType.Success)
+              triggerHapticNotification(NotificationType.Success)
               fetchData()
             } catch (err: any) {
               showAlert({ title: 'Error', message: err.message, type: 'error' })
@@ -491,7 +490,7 @@ export default function CustomerDetailScreen() {
               return (
                 <TouchableOpacity
                   key={tab}
-                  onPress={() => { triggerHapticImpact(Haptics.ImpactFeedbackStyle.Light); setActiveTab(tab) }}
+                  onPress={() => { triggerHapticImpact(ImpactStyle.Light); setActiveTab(tab) }}
                   style={[
                     styles.tab,
                     { backgroundColor: activeTab === tab ? colors.primary : colors.surface, borderColor: activeTab === tab ? colors.primary : colors.cardBorder }

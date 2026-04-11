@@ -52,11 +52,11 @@ import {
   FileText
 } from 'lucide-react-native'
 import { format } from 'date-fns'
-import * as Haptics from 'expo-haptics'
+
 import { useAlert } from '@/src/context/AlertContext'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { calculateInterestAmount, calculateDueDate, InterestType, PenaltyType, calculateEMI } from '@/src/lib/financial'
-import { formatCurrency, triggerHapticImpact, triggerHapticNotification } from '@/src/lib/utils'
+import { formatCurrency, triggerHapticImpact, triggerHapticNotification, ImpactStyle, NotificationType } from '@/src/lib/utils'
 import { useSettings } from '@/src/context/SettingsContext'
 import * as Print from 'expo-print'
 import * as Sharing from 'expo-sharing'
@@ -172,12 +172,12 @@ export default function NewLoanScreen() {
         return
       }
     }
-    triggerHapticImpact(Haptics.ImpactFeedbackStyle.Medium)
+    triggerHapticImpact(ImpactStyle.Medium)
     setStep((prev) => (prev + 1) as WizardStep)
   }
 
   const prevStep = () => {
-    triggerHapticImpact(Haptics.ImpactFeedbackStyle.Light)
+    triggerHapticImpact(ImpactStyle.Light)
     setStep((prev) => (prev - 1) as WizardStep)
   }
 
@@ -218,7 +218,7 @@ export default function NewLoanScreen() {
 
       if (dbError) throw dbError
 
-      triggerHapticNotification(Haptics.NotificationFeedbackType.Success)
+      triggerHapticNotification(NotificationType.Success)
       setSuccessData({
         id: Math.random().toString(36).substring(2, 9).toUpperCase(),
         customer: selectedCustomer?.name || 'Customer',
@@ -447,7 +447,7 @@ export default function NewLoanScreen() {
                               borderColor: customerId === item.id ? colors.primary : colors.cardBorder
                             }
                           ]}
-                          onPress={() => { triggerHapticImpact(Haptics.ImpactFeedbackStyle.Light); setCustomerId(item.id) }}
+                          onPress={() => { triggerHapticImpact(ImpactStyle.Light); setCustomerId(item.id) }}
                           activeOpacity={0.8}
                         >
                           <View style={styles.customerRow}>
@@ -582,7 +582,7 @@ export default function NewLoanScreen() {
                         <Text style={{ color: colors.textTertiary, fontSize: 12 }}>Applied after 3-day grace</Text>
                       </View>
                       <TouchableOpacity
-                        onPress={() => { triggerHapticImpact(Haptics.ImpactFeedbackStyle.Light); setPenaltyEnabled(!penaltyEnabled) }}
+                        onPress={() => { triggerHapticImpact(ImpactStyle.Light); setPenaltyEnabled(!penaltyEnabled) }}
                         style={[styles.switchTrack, { backgroundColor: penaltyEnabled ? colors.primary : isDark ? '#334155' : '#cbd5e1' }]}
                       >
                         <Animated.View style={[styles.switchThumb, { transform: [{ translateX: penaltyEnabled ? 20 : 0 }] }]} />

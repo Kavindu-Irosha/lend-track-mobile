@@ -15,10 +15,9 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTheme } from '@/src/context/ThemeContext'
 import { useAuth } from '@/src/context/AuthContext'
 import { supabase } from '@/src/lib/supabase'
-import { formatCurrency, formatAppDate, triggerHapticNotification, triggerHapticImpact, isPerformanceMode } from '@/src/lib/utils'
+import { formatCurrency, formatAppDate, triggerHapticNotification, triggerHapticImpact, isPerformanceMode, ImpactStyle } from '@/src/lib/utils'
 import { useSettings } from '@/src/context/SettingsContext'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import * as Haptics from 'expo-haptics'
 import StatsCard from '@/src/components/StatsCard'
 import LoadingSpinner from '@/src/components/LoadingSpinner'
 import { useDashboard } from '@/src/context/DashboardContext'
@@ -220,7 +219,7 @@ export default function DashboardScreen() {
             style={[styles.actionPillar, { backgroundColor: colors.surface, borderColor: colors.cardBorder }, settings.compactMode && { paddingVertical: 10 }]} 
             activeOpacity={0.8}
             onPress={() => {
-              triggerHapticImpact(Haptics.ImpactFeedbackStyle.Medium)
+              triggerHapticImpact(ImpactStyle.Medium)
               router.push('/(tabs)/customers/new')
             }}
           >
@@ -234,7 +233,7 @@ export default function DashboardScreen() {
             style={[styles.actionPillar, { backgroundColor: colors.surface, borderColor: colors.cardBorder }, settings.compactMode && { paddingVertical: 10 }]} 
             activeOpacity={0.8}
             onPress={() => {
-              triggerHapticImpact(Haptics.ImpactFeedbackStyle.Medium)
+              triggerHapticImpact(ImpactStyle.Medium)
               if (stats.customerCount === 0) showAlert({title: 'No Customers', message: 'Please add a customer first.', type: 'warning'})
               else router.push('/(tabs)/loans/new')
             }}
@@ -249,7 +248,7 @@ export default function DashboardScreen() {
             style={[styles.actionPillar, { backgroundColor: colors.surface, borderColor: colors.cardBorder }, settings.compactMode && { paddingVertical: 10 }]} 
             activeOpacity={0.8}
             onPress={() => {
-              triggerHapticImpact(Haptics.ImpactFeedbackStyle.Medium)
+              triggerHapticImpact(ImpactStyle.Medium)
               if (stats.activeLoanCount === 0) showAlert({title: 'No Active Loans', message: 'You need an active loan to record payment.', type: 'warning'})
               else router.push('/(tabs)/payments/new')
             }}
@@ -371,7 +370,7 @@ export default function DashboardScreen() {
                 <TouchableOpacity
                   key={range.id}
                   onPress={() => {
-                    triggerHapticImpact(Haptics.ImpactFeedbackStyle.Light)
+                    triggerHapticImpact(ImpactStyle.Light)
                     setTimeRange(range.id as any)
                   }}
                   style={[

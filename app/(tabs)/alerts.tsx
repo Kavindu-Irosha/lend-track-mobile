@@ -13,8 +13,7 @@ import { useFocusEffect, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTheme } from '@/src/context/ThemeContext'
 import { supabase } from '@/src/lib/supabase'
-import { formatCurrency, formatAppDate, triggerHapticImpact, triggerHapticNotification, isPerformanceMode } from '@/src/lib/utils'
-import * as Haptics from 'expo-haptics'
+import { formatCurrency, formatAppDate, triggerHapticImpact, triggerHapticNotification, isPerformanceMode, ImpactStyle, NotificationType } from '@/src/lib/utils'
 import LoadingSpinner from '@/src/components/LoadingSpinner'
 import EmptyState from '@/src/components/EmptyState'
 import {
@@ -121,7 +120,7 @@ export default function AlertsScreen() {
     penalty: number = 0
   ) => {
     if (!phone) return
-    triggerHapticImpact(Haptics.ImpactFeedbackStyle.Medium)
+    triggerHapticImpact(ImpactStyle.Medium)
     const cleanPhone = phone.replace(/\D/g, '')
     const message = encodeURIComponent(
       getWhatsAppReminder(name, amount, dueDate, isOverdue, penalty)

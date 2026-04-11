@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Stack, useRouter, useSegments } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
-import * as SplashScreen from 'expo-splash-screen'
 import * as NavigationBar from 'expo-navigation-bar'
 import { Platform, View, AppState, type AppStateStatus } from 'react-native'
 import { AuthProvider, useAuth } from '@/src/context/AuthContext'
@@ -18,8 +17,7 @@ import { DashboardProvider } from '@/src/context/DashboardContext'
 import SettingsTransitionOverlay from '@/src/components/SettingsTransitionOverlay'
 import { isPerformanceMode } from '@/src/lib/utils'
 
-// Keep the native splash visible while we load resources
-SplashScreen.preventAutoHideAsync()
+
 
 function RootLayoutNav() {
   const { user, loading: authLoading } = useAuth()
@@ -72,10 +70,7 @@ function RootLayoutNav() {
     }
   }, [appReady, showSplash])
 
-  // Hide the native splash once our custom splash is showing
-  useEffect(() => {
-    SplashScreen.hideAsync()
-  }, [])
+
 
   // Wait for auth to resolve, then mark app ready
   useEffect(() => {

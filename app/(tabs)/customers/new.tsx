@@ -23,8 +23,7 @@ import { supabase } from '@/src/lib/supabase'
 import FormInput from '@/src/components/FormInput'
 import LoadingSpinner from '@/src/components/LoadingSpinner'
 import { ArrowLeft, Camera, Image as ImageIcon, X, User, Phone, CreditCard, Shield, FileText, AlertCircle, Check } from 'lucide-react-native'
-import * as Haptics from 'expo-haptics'
-import { triggerHapticNotification } from '@/src/lib/utils'
+import { triggerHapticNotification, NotificationType } from '@/src/lib/utils'
 
 export default function NewCustomerScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>()
@@ -191,9 +190,9 @@ export default function NewCustomerScreen() {
 
       if (dbError) {
         setError(dbError.message)
-        triggerHapticNotification(Haptics.NotificationFeedbackType.Error)
+        triggerHapticNotification(NotificationType.Error)
       } else {
-        triggerHapticNotification(Haptics.NotificationFeedbackType.Success)
+        triggerHapticNotification(NotificationType.Success)
         router.navigate('/(tabs)/customers')
       }
     } catch (err: any) {

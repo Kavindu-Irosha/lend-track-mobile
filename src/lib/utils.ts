@@ -39,6 +39,10 @@ export function updateOptimizationCache(
 
 import * as Haptics from 'expo-haptics'
 
+// Re-export haptic enums so no other file needs to import expo-haptics directly
+export const ImpactStyle = Haptics.ImpactFeedbackStyle
+export const NotificationType = Haptics.NotificationFeedbackType
+
 export function triggerHapticImpact(style = Haptics.ImpactFeedbackStyle.Light) {
   if (cachedHapticsEnabled) {
     Haptics.impactAsync(style)

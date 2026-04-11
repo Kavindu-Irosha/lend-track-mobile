@@ -4,8 +4,7 @@ import { useSecurity } from '@/src/context/SecurityContext'
 import { useAuth } from '@/src/context/AuthContext'
 import { useTheme } from '@/src/context/ThemeContext'
 import { useSettings } from '@/src/context/SettingsContext'
-import { triggerHapticImpact, isPerformanceMode } from '@/src/lib/utils'
-import * as Haptics from 'expo-haptics'
+import { triggerHapticImpact, isPerformanceMode, ImpactStyle } from '@/src/lib/utils'
 import { Fingerprint, Lock, ShieldCheck, LogOut } from 'lucide-react-native'
 import Animated, { 
   FadeIn, 
@@ -107,7 +106,7 @@ export default function BiometricGuard() {
         <TouchableOpacity 
           style={styles.signOutButton}
           onPress={() => {
-            triggerHapticImpact(Haptics.ImpactFeedbackStyle.Medium)
+            triggerHapticImpact(ImpactStyle.Medium)
             signOut()
           }}
           activeOpacity={0.7}

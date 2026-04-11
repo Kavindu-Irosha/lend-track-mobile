@@ -2,9 +2,7 @@ import React, { Component, ErrorInfo, ReactNode } from 'react'
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform } from 'react-native'
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { triggerHapticImpact } from '@/src/lib/utils'
-import { router } from 'expo-router'
-import * as Haptics from 'expo-haptics'
+import { triggerHapticImpact, ImpactStyle } from '@/src/lib/utils'
 
 interface Props {
   children: ReactNode
@@ -30,12 +28,12 @@ export default class ErrorBoundary extends Component<Props, State> {
   }
 
   private handleReset = () => {
-    triggerHapticImpact(Haptics.ImpactFeedbackStyle.Heavy)
+    triggerHapticImpact(ImpactStyle.Heavy)
     this.setState({ hasError: false, error: null })
   }
 
   private handleGoHome = () => {
-    triggerHapticImpact(Haptics.ImpactFeedbackStyle.Medium)
+    triggerHapticImpact(ImpactStyle.Medium)
     this.setState({ hasError: false, error: null })
     router.replace('/(tabs)/dashboard')
   }

@@ -30,8 +30,7 @@ import {
   ShieldAlert,
   LucideIcon,
 } from 'lucide-react-native'
-import { triggerHapticNotification, triggerHapticImpact, isPerformanceMode } from '@/src/lib/utils'
-import * as Haptics from 'expo-haptics'
+import { triggerHapticNotification, triggerHapticImpact, isPerformanceMode, NotificationType } from '@/src/lib/utils'
 
 const { width } = Dimensions.get('window')
 
@@ -41,10 +40,10 @@ const ALERT_CONFIG: Record<string, {
   bgGradient: string;
   haptic: string 
 }> = {
-  info: { Icon: Info, color: '#3b82f6', bgGradient: 'rgba(59,130,246,0.12)', haptic: 'success' },
-  success: { Icon: CheckCircle2, color: '#10b981', bgGradient: 'rgba(16,185,129,0.12)', haptic: 'success' },
-  warning: { Icon: ShieldAlert, color: '#f59e0b', bgGradient: 'rgba(245,158,11,0.12)', haptic: 'warning' },
-  error: { Icon: XCircle, color: '#ef4444', bgGradient: 'rgba(239,68,68,0.12)', haptic: 'error' },
+  info: { Icon: Info, color: '#3b82f6', bgGradient: 'rgba(59,130,246,0.12)', haptic: NotificationType.Success },
+  success: { Icon: CheckCircle2, color: '#10b981', bgGradient: 'rgba(16,185,129,0.12)', haptic: NotificationType.Success },
+  warning: { Icon: ShieldAlert, color: '#f59e0b', bgGradient: 'rgba(245,158,11,0.12)', haptic: NotificationType.Warning },
+  error: { Icon: XCircle, color: '#ef4444', bgGradient: 'rgba(239,68,68,0.12)', haptic: NotificationType.Error },
 }
 
 export default function CustomAlert() {
@@ -54,8 +53,8 @@ export default function CustomAlert() {
 
   useEffect(() => {
     if (visible && alert?.type) {
-      const hapticType = ALERT_CONFIG[alert.type]?.haptic || 'success'
-      triggerHapticNotification(hapticType as any)
+      const hapticNotifyType = ALERT_CONFIG[alert.type]?.haptic || NotificationType.Success
+      triggerHapticNotification(hapticNotifyType)
       
       // Bounce animation for icon (Reduced in Performance Mode)
       if (isPerformanceMode()) {

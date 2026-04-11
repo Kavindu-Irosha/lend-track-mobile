@@ -7,8 +7,7 @@ import { useTheme } from '@/src/context/ThemeContext'
 import { useSettings } from '@/src/context/SettingsContext'
 import { useAlert } from '@/src/context/AlertContext'
 import { ArrowLeft, Sun, Moon, Smartphone, Palette, LayoutGrid, Hash, Calendar, Phone, Globe, RotateCcw, Zap, Vibrate } from 'lucide-react-native'
-import { triggerHapticImpact, triggerHapticSelection, triggerHapticNotification } from '@/src/lib/utils'
-import * as Haptics from 'expo-haptics'
+import { triggerHapticImpact, triggerHapticSelection, triggerHapticNotification, isPerformanceMode, ImpactStyle, NotificationType } from '@/src/lib/utils'
 
 function ToggleRow({ label, sub, value, onToggle, iconColor, icon: Icon, isDark, colors }: any) {
   return (
@@ -46,7 +45,7 @@ export default function DisplaySettingsScreen() {
   ]
 
   const handleReset = () => {
-    triggerHapticImpact(Haptics.ImpactFeedbackStyle.Medium)
+    triggerHapticImpact(ImpactStyle.Medium)
     showAlert({
       title: 'Reset All Settings',
       message: 'This will restore all preferences to factory defaults across all sections.',

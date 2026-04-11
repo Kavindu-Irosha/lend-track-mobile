@@ -23,7 +23,7 @@ import {
   Trash2, Filter, TrendingUp, AlertCircle, CheckCircle2, Wallet, Activity 
 } from 'lucide-react-native'
 import { generateCollectionReport } from '@/src/lib/reports'
-import { formatCurrency, triggerHapticImpact, triggerHapticNotification, isPerformanceMode } from '@/src/lib/utils'
+import { formatCurrency, triggerHapticImpact, triggerHapticNotification, isPerformanceMode, ImpactStyle, NotificationType } from '@/src/lib/utils'
 import { format, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { useAlert } from '@/src/context/AlertContext'
@@ -205,11 +205,11 @@ export default function LoansScreen() {
           style: 'destructive',
           onPress: async () => {
              try {
-               triggerHapticImpact('Heavy')
+               triggerHapticImpact(ImpactStyle.Heavy)
                const { error } = await supabase.from('loans').delete().eq('id', loanId)
                if (error) throw error
                
-               triggerHapticNotification('Success')
+               triggerHapticNotification(NotificationType.Success)
                fetchLoans()
              } catch (err: any) {
                showAlert({ title: 'Error', message: err.message, type: 'error' })

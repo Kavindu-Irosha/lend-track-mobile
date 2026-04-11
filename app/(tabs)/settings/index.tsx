@@ -26,9 +26,8 @@ import {
   type LucideIcon,
 } from 'lucide-react-native'
 import { APP_VERSION, BUILD_NUMBER, LAST_OTA_UPDATE, CHANGELOG } from '@/src/constants/version'
-import { triggerHapticImpact, triggerHapticSelection, triggerHapticNotification, isPerformanceMode } from '@/src/lib/utils'
+import { triggerHapticImpact, triggerHapticSelection, triggerHapticNotification, isPerformanceMode, ImpactStyle, NotificationType } from '@/src/lib/utils'
 import * as Updates from 'expo-updates'
-import * as Haptics from 'expo-haptics'
 
 // Section row component
 function SectionLink({ icon: Icon, iconColor, label, sub, onPress, colors, isDark }: { icon: LucideIcon; iconColor: string; label: string; sub: string; onPress: () => void; colors: any; isDark: boolean }) {
@@ -61,7 +60,7 @@ export default function SettingsHub() {
   )
 
   const handleLogout = () => {
-    triggerHapticImpact(Haptics.ImpactFeedbackStyle.Medium)
+    triggerHapticImpact(ImpactStyle.Medium)
     showAlert({
       title: 'Sign Out',
       message: 'Are you sure you want to sign out?',

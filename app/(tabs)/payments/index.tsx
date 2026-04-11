@@ -22,8 +22,7 @@ import { format } from 'date-fns'
 import { formatCurrency } from '@/src/lib/utils'
 import * as FileSystem from 'expo-file-system/legacy'
 import * as Sharing from 'expo-sharing'
-import { triggerHapticImpact, triggerHapticSelection, triggerHapticNotification, isPerformanceMode } from '@/src/lib/utils'
-import * as Haptics from 'expo-haptics'
+import { triggerHapticImpact, triggerHapticSelection, triggerHapticNotification, isPerformanceMode, ImpactStyle } from '@/src/lib/utils'
 import { Dimensions, Modal, ScrollView as RNScrollView } from 'react-native'
 import Animated, { FadeInDown, FadeInRight, FadeOut, FadeIn, Layout, SlideInRight, SlideOutLeft, SlideInLeft, SlideOutRight } from 'react-native-reanimated'
 import { LineChart, BarChart } from 'react-native-chart-kit'
@@ -392,7 +391,7 @@ export default function PaymentsScreen() {
                         }}
                         bezier
                         onDataPointClick={({ value, index }: { value: number; index: number }) => {
-                          triggerHapticImpact(Haptics.ImpactFeedbackStyle.Light)
+                          triggerHapticImpact(ImpactStyle.Light)
                           setSelectedMonth({
                             label: historyData[index]?.fullLabel || "Date",
                             value: value * 1000
