@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react'
+import { APP_VERSION } from '../constants/version'
 import {
   View,
   Text,
@@ -219,7 +220,7 @@ export default function AnimatedSplash({ onFinish }: SplashScreenProps) {
       {/* Bottom version text */}
       <Animated.View style={[styles.bottomSection, subtitleStyle]}>
         <Text style={[styles.versionText, { color: colors.textSecondary }]}>
-          Version 1.0.0
+          Version {APP_VERSION}
         </Text>
       </Animated.View>
     </Animated.View>
