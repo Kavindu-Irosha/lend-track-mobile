@@ -1,5 +1,6 @@
 export const APP_VERSION = "2.0.0"
 export const BUILD_NUMBER = "2026.04.10.01"
+export const LAST_OTA_UPDATE = "2026-04-11 22:25"
 
 export type ChangelogItem = {
   version: string;

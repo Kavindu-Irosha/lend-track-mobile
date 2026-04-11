@@ -166,7 +166,7 @@ export default function AlertsScreen() {
               <View style={[styles.summaryIcon, { backgroundColor: isDark ? 'rgba(239,68,68,0.2)' : '#fee2e2' }]}>
                 <AlertTriangle size={14} color="#ef4444" />
               </View>
-              <View style={{ flex: 1 }}>
+              <View style={{ width: '100%' }}>
                 <Text 
                   style={[styles.summaryValue, { color: isDark ? '#fca5a5' : '#991b1b' }]}
                   numberOfLines={1}
@@ -181,7 +181,7 @@ export default function AlertsScreen() {
               <View style={[styles.summaryIcon, { backgroundColor: isDark ? 'rgba(245,158,11,0.2)' : '#fef3c7' }]}>
                 <Clock size={14} color="#f59e0b" />
               </View>
-              <View style={{ flex: 1 }}>
+              <View style={{ width: '100%' }}>
                 <Text 
                   style={[styles.summaryValue, { color: isDark ? '#fcd34d' : '#92400e' }]}
                   numberOfLines={1}
@@ -196,9 +196,9 @@ export default function AlertsScreen() {
               <View style={[styles.summaryIcon, { backgroundColor: isDark ? 'rgba(139,92,246,0.2)' : '#ede9fe' }]}>
                 <ShieldAlert size={14} color="#8b5cf6" />
               </View>
-              <View style={{ flex: 1 }}>
+              <View style={{ width: '100%' }}>
                 <Text 
-                  style={[styles.summaryValue, { color: isDark ? '#c4b5fd' : '#4c1d95', fontSize: 13 }]}
+                  style={[styles.summaryValue, { color: isDark ? '#c4b5fd' : '#4c1d95' }]}
                   numberOfLines={1}
                   adjustsFontSizeToFit
                 >
@@ -360,10 +360,10 @@ const styles = StyleSheet.create({
 
   // Summary
   summaryRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 10, paddingBottom: 16 },
-  summaryCard: { flex: 1, padding: 12, borderRadius: 14, gap: 8, alignItems: 'center', flexDirection: 'row' },
-  summaryIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  summaryValue: { fontSize: 16, fontWeight: '800', letterSpacing: -0.3 },
-  summaryLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', marginTop: 1 },
+  summaryCard: { flex: 1, padding: 12, borderRadius: 14, gap: 6, alignItems: 'flex-start', flexDirection: 'column' },
+  summaryIcon: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  summaryValue: { fontSize: 15, fontWeight: '800', letterSpacing: -0.3 },
+  summaryLabel: { fontSize: 9, fontWeight: '700', textTransform: 'uppercase', marginTop: 1 },
 
   listContent: { paddingHorizontal: 16, paddingBottom: 24, gap: 12 },
   emptyContent: { flexGrow: 1, padding: 16 },

@@ -26,7 +26,8 @@ import {
   type LucideIcon,
 } from 'lucide-react-native'
 import * as Haptics from 'expo-haptics'
-import { APP_VERSION, BUILD_NUMBER, CHANGELOG } from '@/src/constants/version'
+import { APP_VERSION, BUILD_NUMBER, LAST_OTA_UPDATE, CHANGELOG } from '@/src/constants/version'
+import * as Updates from 'expo-updates'
 
 // Section row component
 function SectionLink({ icon: Icon, iconColor, label, sub, onPress, colors, isDark }: { icon: LucideIcon; iconColor: string; label: string; sub: string; onPress: () => void; colors: any; isDark: boolean }) {
@@ -191,8 +192,38 @@ export default function SettingsHub() {
             </View>
           </Modal>
 
+          {/* Deployment Status (For OTA Verification) */}
+          <Animated.View entering={FadeInDown.delay(100).duration(400).springify()} style={{ marginTop: 20 }}>
+            <View style={styles.sectionHeader}>
+              <View style={[styles.sectionIcon, { backgroundColor: `${colors.primary}15` }]}>
+                <Shield size={16} color={colors.primary} />
+              </View>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Deployment Status</Text>
+            </View>
+            <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.cardBorder, padding: 16 }]}>
+              <View style={styles.deploymentRow}>
+                <Text style={[styles.deploymentLabel, { color: colors.textTertiary }]}>Active Channel</Text>
+                <Text style={[styles.deploymentValue, { color: colors.text }]}>{Updates.channel || 'Development'}</Text>
+              </View>
+              <View style={styles.deploymentDivider} />
+              <View style={styles.deploymentRow}>
+                <Text style={[styles.deploymentLabel, { color: colors.textTertiary }]}>Last OTA Sync</Text>
+                <Text style={[styles.deploymentValue, { color: colors.text }]}>{LAST_OTA_UPDATE}</Text>
+              </View>
+              <View style={styles.deploymentDivider} />
+              <View style={styles.deploymentRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.deploymentLabel, { color: colors.textTertiary }]}>Update ID</Text>
+                  <Text style={[styles.deploymentValue, { color: colors.text, fontSize: 10, marginTop: 4 }]}>
+                    {Updates.updateId || 'Native Bundle (Pre-OTA)'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </Animated.View>
+
           {/* Sign Out */}
-          <Animated.View entering={FadeInDown.delay(120).duration(400).springify()} style={{ marginTop: 20 }}>
+          <Animated.View entering={FadeInDown.delay(140).duration(400).springify()} style={{ marginTop: 20 }}>
             <TouchableOpacity style={[styles.logoutButton, { backgroundColor: isDark ? 'rgba(239,68,68,0.12)' : '#fef2f2' }]} onPress={handleLogout} activeOpacity={0.8}>
               <LogOut size={16} color="#ef4444" />
               <Text style={[styles.logoutText, { color: '#ef4444' }]}>Sign Out</Text>
@@ -279,4 +310,10 @@ const styles = StyleSheet.create({
   noteText: { flex: 1, fontSize: 13, lineHeight: 19 },
   doneBtn: { marginTop: 16, paddingVertical: 16, borderRadius: 16, alignItems: 'center' },
   doneBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+
+  // Deployment Status
+  deploymentRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  deploymentLabel: { fontSize: 12, fontWeight: '600' },
+  deploymentValue: { fontSize: 13, fontWeight: '700' },
+  deploymentDivider: { height: 1, backgroundColor: 'rgba(0,0,0,0.05)', marginVertical: 12 },
 })
