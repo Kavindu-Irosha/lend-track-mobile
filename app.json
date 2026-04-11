@@ -10,6 +10,7 @@
     "backgroundColor": "#09090b",
     "scheme": "lendtrack",
     "splash": {
+      "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#09090b"
     },
