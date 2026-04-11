@@ -1,8 +1,8 @@
 import Constants from 'expo-constants'
 
 export const APP_VERSION = Constants.expoConfig?.version || '2.2.0'
-export const BUILD_NUMBER = "2026.04.11.02"
-export const LAST_OTA_UPDATE = "2026-04-11 23:35"
+export const BUILD_NUMBER = "2026.04.11.03"
+export const LAST_OTA_UPDATE = "2026-04-11 23:38"
 
 export type ChangelogItem = {
   version: string;

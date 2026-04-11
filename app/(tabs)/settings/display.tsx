@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTheme } from '@/src/context/ThemeContext'
 import { useSettings } from '@/src/context/SettingsContext'
 import { useAlert } from '@/src/context/AlertContext'
-import { ArrowLeft, Sun, Moon, Smartphone, Palette, LayoutGrid, Hash, Calendar, Phone, Globe, RotateCcw, Zap, Vibration } from 'lucide-react-native'
+import { ArrowLeft, Sun, Moon, Smartphone, Palette, LayoutGrid, Hash, Calendar, Phone, Globe, RotateCcw, Zap, Vibrate } from 'lucide-react-native'
 import * as Haptics from 'expo-haptics'
 
 function ToggleRow({ label, sub, value, onToggle, iconColor, icon: Icon, isDark, colors }: any) {
@@ -14,7 +14,7 @@ function ToggleRow({ label, sub, value, onToggle, iconColor, icon: Icon, isDark,
     <View style={st.toggleRow}>
       <View style={st.toggleRowLeft}>
         <View style={[st.rowIcon, { backgroundColor: iconColor + '15' }]}>
-          <Icon size={16} color={iconColor} />
+          {Icon ? <Icon size={16} color={iconColor} /> : <View style={{ width: 16, height: 16 }} />}
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[st.rowLabel, { color: colors.text }]}>{label}</Text>
@@ -192,7 +192,7 @@ export default function DisplaySettingsScreen() {
               sub="Physical vibration on interaction" 
               value={settings.hapticsEnabled} 
               onToggle={(v: boolean) => updateSetting('hapticsEnabled', v)} 
-              icon={Vibration} 
+              icon={Vibrate} 
               iconColor="#10b981" 
               isDark={isDark} 
               colors={colors} 
