@@ -20,6 +20,7 @@ import { useSettings } from '@/src/context/SettingsContext'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import StatsCard from '@/src/components/StatsCard'
 import LoadingSpinner from '@/src/components/LoadingSpinner'
+import { useDashboard } from '@/src/context/DashboardContext'
 import { useAlert } from '@/src/context/AlertContext'
 import { 
   CreditCard, 
@@ -49,190 +50,26 @@ const screenWidth = Dimensions.get('window').width
 
 export default function DashboardScreen() {
   const { colors, isDark } = useTheme()
-  const { user, signOut } = useAuth()
-  const { showAlert, showToast } = useAlert()
+  const { user } = useAuth()
+  const { showToast, showAlert } = useAlert()
   const { settings } = useSettings()
   const router = useRouter()
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
+  
+  const { 
+    stats, recentPayments, topPending, chartData: contextChartData, 
+    isChartEmpty, loading, refreshing, fetchDashboardData 
+  } = useDashboard()
+
   const [focusKey, setFocusKey] = useState(0)
-  const [stats, setStats] = useState({ 
-    totalGiven: 0, 
-    totalCollected: 0, 
-    totalPending: 0, 
-    principalDisbursed: 0, 
-    expectedProfit: 0,
-    totalCredits: 0
-  })
-  const [customerCount, setCustomerCount] = useState(0)
-  const [activeLoanCount, setActiveLoanCount] = useState(0)
-  const [completedLoanCount, setCompletedLoanCount] = useState(0)
-  const [recentPayments, setRecentPayments] = useState<any[]>([])
-  const [topPending, setTopPending] = useState<any[]>([])
-  const [chartData, setChartData] = useState<{ labels: string[]; inData: number[]; outData: number[] }>({ 
-    labels: ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'], 
-    inData: [0, 0, 0, 0, 0, 0, 0],
-    outData: [0, 0, 0, 0, 0, 0, 0]
-  })
-  const [isChartEmpty, setIsChartEmpty] = useState(true)
   const [timeRange, setTimeRange] = useState<'7d' | '1m' | '3m' | '6m'>('1m')
   const [selectedPoint, setSelectedPoint] = useState<{ label: string; in: number; out: number } | null>(null)
   const [chartLoading, setChartLoading] = useState(false)
 
-  const fetchChartData = useCallback(async (range: '7d' | '1m' | '3m' | '6m', isSilent = false) => {
-    if (!isSilent) setChartLoading(true)
-    try {
-      const rangeDays = range === '7d' ? 7 : range === '1m' ? 30 : range === '3m' ? 90 : 180
-      const startDate = new Date()
-      startDate.setDate(startDate.getDate() - (rangeDays - 1))
-      const startDateStr = startDate.toISOString().split('T')[0]
-
-      const [paymentsRes, loansRes] = await Promise.all([
-        supabase.from('payments').select('amount, payment_date').gte('payment_date', startDateStr),
-        supabase.from('loans').select('amount, start_date').gte('start_date', startDateStr)
-      ])
-
-      const inMap: Record<string, number> = {}
-      const outMap: Record<string, number> = {}
-
-      for (let i = rangeDays - 1; i >= 0; i--) {
-        const d = new Date()
-        d.setDate(d.getDate() - i)
-        const formattedDate = format(d, rangeDays <= 30 ? 'MMM dd' : 'MM/dd')
-        inMap[formattedDate] = 0
-        outMap[formattedDate] = 0
-      }
-
-      if (paymentsRes.data) {
-        paymentsRes.data.forEach((p) => {
-          const d = new Date(p.payment_date)
-          const label = format(d, rangeDays <= 30 ? 'MMM dd' : 'MM/dd')
-          if (inMap[label] !== undefined) inMap[label] += Number(p.amount)
-        })
-      }
-
-      if (loansRes.data) {
-        loansRes.data.forEach((l) => {
-          const d = new Date(l.start_date)
-          const label = format(d, rangeDays <= 30 ? 'MMM dd' : 'MM/dd')
-          if (outMap[label] !== undefined) outMap[label] += Number(l.amount)
-        })
-      }
-
-      const allLabels = Object.keys(inMap)
-      const inValues = Object.values(inMap)
-      const outValues = Object.values(outMap)
-      const hasAnyData = inValues.some(v => v > 0) || outValues.some(v => v > 0)
-      
-      const labelStep = rangeDays <= 7 ? 1 : rangeDays <= 30 ? 5 : rangeDays <= 90 ? 15 : 30
-      const displayLabels = allLabels.map((l, i) => (i % labelStep === 0 ? l : ''))
-
-      if (hasAnyData) {
-        setChartData({ labels: displayLabels, inData: inValues, outData: outValues })
-        setIsChartEmpty(false)
-      } else {
-        setChartData({ 
-          labels: displayLabels, 
-          inData: inValues.length > 0 ? inValues : [0, 0, 0, 0, 0, 0, 0],
-          outData: outValues.length > 0 ? outValues : [0, 0, 0, 0, 0, 0, 0]
-        })
-        setIsChartEmpty(true)
-      }
-    } catch (err) {
-      console.error('Chart fetch error:', err)
-    } finally {
-      if (!isSilent) setChartLoading(false)
-    }
-  }, [])
-
-  const fetchData = useCallback(async (isInitial = true) => {
-    if (isInitial) setLoading(true)
-    try {
-      // Fetch core dependencies in parallel
-      const [loansResponse, paymentsResponse, customersResponse] = await Promise.all([
-        supabase.from('loans').select('*, payments(amount), customers(id, name)'),
-        supabase.from('payments').select('*, loans(id, customers(id, name))').order('payment_date', { ascending: false }).order('created_at', { ascending: false }).limit(5),
-        supabase.from('customers').select('*', { count: 'exact', head: true })
-      ])
-
-      const loans = loansResponse.data
-      const payments = paymentsResponse.data
-      const customerCount = customersResponse.count || 0
-
-      // Calculate chart data silently (part of full fetch)
-      fetchChartData(timeRange, true)
-
-      // Calculate stats
-      let totalGiven = 0
-      let totalCollected = 0
-      let totalPending = 0
-      let principalDisbursed = 0
-      let expectedProfit = 0
-      const pendingList: any[] = []
-
-      let totalCredits = 0
-      let completedCountTracker = 0
-
-      ;(loans || []).forEach((loan) => {
-        principalDisbursed += Number(loan.amount)
-        expectedProfit += Number(loan.interest)
-        
-        const loanTotal = Number(loan.amount) + Number(loan.interest)
-        totalGiven += loanTotal
-        const paidForLoan = loan.payments?.reduce(
-          (sum: number, p: any) => sum + Number(p.amount), 0
-        ) || 0
-        totalCollected += paidForLoan
-        const remaining = loanTotal - paidForLoan
-        
-        if (remaining > 0) {
-          totalPending += remaining
-          pendingList.push({
-            ...loan,
-            remaining,
-            customerName: loan.customers?.name || 'Unknown',
-            customerId: loan.customers?.id,
-          })
-        } else {
-          completedCountTracker++
-          if (remaining < 0) {
-            totalCredits += Math.abs(remaining)
-          }
-        }
-      })
-
-      pendingList.sort((a, b) => b.remaining - a.remaining)
-
-      setStats({ 
-        totalGiven, 
-        totalCollected, 
-        totalPending, 
-        principalDisbursed, 
-        expectedProfit,
-        totalCredits 
-      })
-      setRecentPayments(payments || [])
-      setTopPending(pendingList.slice(0, 5))
-      setActiveLoanCount(pendingList.length)
-      setCompletedLoanCount(completedCountTracker)
-      setCustomerCount(customerCount)
-    } catch (err) {
-      console.error('Dashboard fetch error:', err)
-    } finally {
-      setLoading(false)
-      setRefreshing(false)
-    }
-  }, [fetchChartData])
-
   useFocusEffect(
     useCallback(() => {
-      let isMounted = true
-      if (isMounted) {
-        fetchData(true)
-        setFocusKey(prev => prev + 1)
-      }
-      return () => { isMounted = false }
-    }, [fetchData])
+      fetchDashboardData(false) // Use cache if available
+      setFocusKey(prev => prev + 1)
+    }, [fetchDashboardData])
   )
 
   // ---- Daily Morning Digest ----
@@ -286,14 +123,9 @@ export default function DashboardScreen() {
     return () => clearTimeout(timer)
   }, [settings.dailySummary, loading])
 
-  // Sub-effect: Only update chart when timeRange changes
-  useEffect(() => {
-    fetchChartData(timeRange)
-  }, [timeRange, fetchChartData])
-
   const onRefresh = () => {
-    setRefreshing(true)
-    fetchData()
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+    fetchDashboardData(true)
   }
 
   if (loading) return <LoadingSpinner message="Loading dashboard..." />
@@ -302,8 +134,18 @@ export default function DashboardScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <Animated.View key={focusKey} style={{ flex: 1 }}>
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+          contentContainerStyle={[styles.scrollContent, settings.compactMode && { padding: 12 }]}
+          refreshControl={
+            <RefreshControl 
+              refreshing={refreshing} 
+              onRefresh={onRefresh} 
+              tintColor={colors.primary} 
+              title="Syncing LendTrack..."
+              titleColor={colors.primary}
+              colors={[colors.primary]}
+              progressBackgroundColor={colors.surface}
+            />
+          }
           showsVerticalScrollIndicator={false}
         >
         {/* Header */}
@@ -311,6 +153,10 @@ export default function DashboardScreen() {
           <View>
             <Text style={[styles.greeting, { color: colors.textSecondary }]}>Welcome back</Text>
             <Text style={[styles.title, { color: colors.text }]}>Dashboard</Text>
+            <View style={styles.syncRow}>
+              <View style={[styles.syncDot, { backgroundColor: '#10b981' }]} />
+              <Text style={[styles.pullHint, { color: colors.textTertiary }]}>Swipe down to sync data</Text>
+            </View>
           </View>
           <TouchableOpacity
             style={[styles.settingsButton, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
@@ -325,10 +171,23 @@ export default function DashboardScreen() {
         </Animated.View>
 
         {/* Elite Hero Portfolio Card */}
-        <Animated.View entering={FadeInDown.delay(50).duration(500).springify()} style={[styles.heroCard, { backgroundColor: colors.primary }]}>
+        <Animated.View 
+          entering={FadeInDown.delay(50).duration(500).springify()} 
+          style={[
+            styles.heroCard, 
+            { backgroundColor: colors.primary },
+            settings.compactMode && { padding: 16, marginTop: 0, borderRadius: 16 }
+          ]}
+        >
           <View style={styles.heroGlow} />
-          <Text style={styles.heroLabel}>Total Portfolio Disbursed</Text>
-          <Text style={styles.heroBalance} adjustsFontSizeToFit numberOfLines={1}>{formatCurrency(stats.principalDisbursed)}</Text>
+          <Text style={[styles.heroLabel, settings.compactMode && { fontSize: 11 }]}>Total Portfolio Disbursed</Text>
+          <Text 
+            style={[styles.heroBalance, settings.compactMode && { fontSize: 30, marginBottom: 16 }]} 
+            adjustsFontSizeToFit 
+            numberOfLines={1}
+          >
+            {formatCurrency(stats.principalDisbursed)}
+          </Text>
           
           <View style={styles.heroSubRow}>
             <View style={styles.heroSubBlock}>
@@ -368,9 +227,9 @@ export default function DashboardScreen() {
           <TouchableOpacity 
             style={[styles.actionPillar, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]} 
             activeOpacity={0.8}
-             onPress={() => {
+            onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-              if (customerCount === 0) showAlert({title: 'No Customers', message: 'Please add a customer first.', type: 'warning'})
+              if (stats.customerCount === 0) showAlert({title: 'No Customers', message: 'Please add a customer first.', type: 'warning'})
               else router.push('/(tabs)/loans/new')
             }}
           >
@@ -385,7 +244,7 @@ export default function DashboardScreen() {
             activeOpacity={0.8}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-              if (activeLoanCount === 0) showAlert({title: 'No Active Loans', message: 'You need an active loan to record payment.', type: 'warning'})
+              if (stats.activeLoanCount === 0) showAlert({title: 'No Active Loans', message: 'You need an active loan to record payment.', type: 'warning'})
               else router.push('/(tabs)/payments/new')
             }}
           >
@@ -399,17 +258,24 @@ export default function DashboardScreen() {
         {/* Pulse Alert for Red-Zone Overdue */}
         <Animated.View entering={FadeInDown.delay(150).duration(400).springify()}>
           {stats.totalPending > 0 ? (
-            <TouchableOpacity style={styles.pulseCard} activeOpacity={0.9} onPress={() => router.push('/(tabs)/loans')}>
+            <TouchableOpacity 
+              style={[
+                styles.pulseCard, 
+                settings.compactMode && { padding: 12, marginBottom: 12 }
+              ]} 
+              activeOpacity={0.9} 
+              onPress={() => router.push('/(tabs)/loans')}
+            >
               <View style={styles.pulseLeft}>
-                <View style={styles.pulseIconBg}>
-                  <AlertCircle size={20} color="#fff" />
+                <View style={[styles.pulseIconBg, settings.compactMode && { width: 32, height: 32 }]}>
+                  <AlertCircle size={settings.compactMode ? 16 : 20} color="#fff" />
                 </View>
                 <View>
-                  <Text style={styles.pulseTitle}>Attention Required</Text>
-                  <Text style={styles.pulseSub}>You have {formatCurrency(stats.totalPending)} pending collection</Text>
+                  <Text style={[styles.pulseTitle, settings.compactMode && { fontSize: 14 }]}>Attention Required</Text>
+                  <Text style={[styles.pulseSub, settings.compactMode && { fontSize: 11 }]}>You have {formatCurrency(stats.totalPending)} pending collection</Text>
                 </View>
               </View>
-              <ArrowRight size={20} color="#fff" style={{ opacity: 0.8 }} />
+              <ArrowRight size={settings.compactMode ? 16 : 20} color="#fff" style={{ opacity: 0.8 }} />
             </TouchableOpacity>
           ) : (
             stats.totalCredits > 0 && (
@@ -433,17 +299,17 @@ export default function DashboardScreen() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.analyticsScroll}>
             <View style={[styles.analyticPill, { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff' }]}>
               <Users size={16} color="#3b82f6" />
-              <Text style={[styles.analyticNum, { color: isDark ? '#fff' : '#1e3a8a' }]}>{customerCount}</Text>
+              <Text style={[styles.analyticNum, { color: isDark ? '#fff' : '#1e3a8a' }]}>{stats.customerCount}</Text>
               <Text style={[styles.analyticLabel, { color: '#3b82f6' }]}>Clients</Text>
             </View>
             <View style={[styles.analyticPill, { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.2)' : '#fffbeb' }]}>
               <TrendingUpDown size={16} color="#f59e0b" />
-              <Text style={[styles.analyticNum, { color: isDark ? '#fff' : '#78350f' }]}>{activeLoanCount}</Text>
+              <Text style={[styles.analyticNum, { color: isDark ? '#fff' : '#78350f' }]}>{stats.activeLoanCount}</Text>
               <Text style={[styles.analyticLabel, { color: '#f59e0b' }]}>Active</Text>
             </View>
             <View style={[styles.analyticPill, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : '#ecfdf5' }]}>
               <CheckCircle2 size={16} color="#10b981" />
-              <Text style={[styles.analyticNum, { color: isDark ? '#fff' : '#064e3b' }]}>{completedLoanCount}</Text>
+              <Text style={[styles.analyticNum, { color: isDark ? '#fff' : '#064e3b' }]}>{stats.completedLoanCount}</Text>
               <Text style={[styles.analyticLabel, { color: '#10b981' }]}>Settled</Text>
             </View>
           </ScrollView>
@@ -451,30 +317,38 @@ export default function DashboardScreen() {
 
         <Animated.View 
           entering={FadeInDown.delay(300).duration(400).springify()}
-          style={[styles.section, { backgroundColor: '#0f172a', borderColor: '#1e293b' }]}
+          style={[
+            styles.section, 
+            { 
+              backgroundColor: isDark ? '#0f172a' : colors.surface, 
+              borderColor: isDark ? '#1e293b' : colors.cardBorder,
+              padding: settings.compactMode ? 12 : 16,
+              marginBottom: settings.compactMode ? 12: 16
+            }
+          ]}
         >
           <View style={styles.sectionHeader}>
              <View>
-              <Text style={[styles.sectionTitle, { color: '#f8fafc' }]}>
+              <Text style={[styles.sectionTitle, { color: isDark ? '#f8fafc' : colors.text }]}>
                 Cash Flow Analysis
               </Text>
               {selectedPoint ? (
                 <View style={styles.watcherRow}>
                   <Text style={[styles.pointWatcherValue, { color: '#10b981' }]}>
-                    In: <Text style={{ color: '#fff' }}>{formatCurrency(selectedPoint.in)}</Text>
+                    In: <Text style={{ color: isDark ? '#fff' : colors.text }}>{formatCurrency(selectedPoint.in)}</Text>
                   </Text>
-                  <View style={[styles.vertDivider, { backgroundColor: '#334155' }]} />
+                  <View style={[styles.vertDivider, { backgroundColor: isDark ? '#334155' : colors.border }]} />
                   <Text style={[styles.pointWatcherValue, { color: '#ef4444' }]}>
-                    Out: <Text style={{ color: '#fff' }}>{formatCurrency(selectedPoint.out)}</Text>
+                    Out: <Text style={{ color: isDark ? '#fff' : colors.text }}>{formatCurrency(selectedPoint.out)}</Text>
                   </Text>
                 </View>
               ) : (
-                <Text style={[styles.watcherSub, { color: '#94a3b8' }]}>Returns (In) vs Investments (Out)</Text>
+                <Text style={[styles.watcherSub, { color: colors.textTertiary }]}>Returns (In) vs Investments (Out)</Text>
               )}
              </View>
              {isChartEmpty && (
-               <View style={[styles.emptyBadge, { backgroundColor: 'rgba(59, 130, 246, 0.2)' }]}>
-                 <Text style={[styles.emptyBadgeText, { color: '#60a5fa' }]}>LIVE TRACKING</Text>
+               <View style={[styles.emptyBadge, { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : colors.primaryBg }]}>
+                 <Text style={[styles.emptyBadgeText, { color: isDark ? '#60a5fa' : colors.primary }]}>LIVE TRACKING</Text>
                </View>
              )}
           </View>
@@ -543,51 +417,53 @@ export default function DashboardScreen() {
               )}
               <LineChart
                 data={{
-                  labels: chartData.labels,
+                  labels: contextChartData.labels,
                   datasets: [
                     { 
-                      data: isChartEmpty ? [10, 25, 45, 30, 55, 40, 60] : chartData.inData,
+                      data: isChartEmpty ? [10, 25, 45, 30, 55, 40, 60] : contextChartData.inData,
                       color: (opacity = 1) => `rgba(16, 185, 129, ${isChartEmpty ? 0.3 : 1})`, // Neon Green
                       strokeWidth: 4
                     },
                     { 
-                      data: isChartEmpty ? [60, 40, 55, 30, 45, 25, 10] : chartData.outData,
+                      data: isChartEmpty ? [60, 40, 55, 30, 45, 25, 10] : contextChartData.outData,
                       color: (opacity = 1) => `rgba(239, 68, 68, ${isChartEmpty ? 0.3 : 1})`, // Neon Red
                       strokeWidth: 4
                     }
                   ],
                 }}
-                width={Math.max(screenWidth - 64, chartData.inData.length * (timeRange === '7d' ? 45 : 35))}
+                width={Math.max(screenWidth - 64, contextChartData.inData.length * (timeRange === '7d' ? 45 : 35))}
                 height={200}
                 withInnerLines={true}
                 withOuterLines={false}
                 withDots={!isChartEmpty}
                 chartConfig={{
-                  backgroundColor: '#0f172a',
-                  backgroundGradientFrom: '#0f172a',
-                  backgroundGradientTo: '#0f172a',
+                  backgroundColor: isDark ? '#0f172a' : colors.surface,
+                  backgroundGradientFrom: isDark ? '#0f172a' : colors.surface,
+                  backgroundGradientTo: isDark ? '#0f172a' : colors.surface,
                   decimalPlaces: 0,
-                  color: (opacity = 1) => `rgba(255, 255, 255, ${opacity * 0.05})`, // Very subtle grid lines
-                  labelColor: () => '#475569',
+                  color: (opacity = 1) => isDark 
+                    ? `rgba(255, 255, 255, ${opacity * 0.05})` 
+                    : `rgba(99, 102, 241, ${opacity * 0.08})`, 
+                  labelColor: () => isDark ? '#475569' : colors.textSecondary,
                   propsForLabels: {
                     fontSize: 10,
                     fontWeight: '600'
                   },
-                  fillShadowGradientFromOpacity: 0, // Disabled messy uniform fill shadow
+                  fillShadowGradientFromOpacity: 0,
                   fillShadowGradientToOpacity: 0,
                   propsForDots: {
-                    r: "5",
+                    r: settings.compactMode ? "4" : "5",
                     strokeWidth: "2",
-                    stroke: "#0f172a" // Creates a beautiful ring effect around dots
+                    stroke: isDark ? "#0f172a" : "#fff" 
                   }
                 }}
                 bezier
                 onDataPointClick={({ value, index }) => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
                   setSelectedPoint({
-                    label: Object.keys(chartData.labels).length > 0 ? chartData.labels[index] || "Date" : "Date",
-                    in: chartData.inData[index] || 0,
-                    out: chartData.outData[index] || 0
+                    label: Object.keys(contextChartData.labels).length > 0 ? contextChartData.labels[index] || "Date" : "Date",
+                    in: contextChartData.inData[index] || 0,
+                    out: contextChartData.outData[index] || 0
                   })
                 }}
                 style={styles.chart}
@@ -601,8 +477,16 @@ export default function DashboardScreen() {
 
         {/* Timeline: Recent Payments */}
         <Animated.View 
-          entering={FadeInDown.delay(300).duration(400).springify()}
-          style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
+          entering={FadeInDown.delay(350).duration(400).springify()}
+          style={[
+            styles.section, 
+            { 
+              backgroundColor: colors.surface, 
+              borderColor: colors.cardBorder,
+              padding: settings.compactMode ? 12 : 16,
+              marginBottom: settings.compactMode ? 12 : 16
+            }
+          ]}
         >
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Activity</Text>
@@ -618,14 +502,14 @@ export default function DashboardScreen() {
           ) : (
             <View style={styles.timelineContainer}>
               {recentPayments.map((payment, index) => (
-                <View key={payment.id} style={styles.timelineItem}>
+                <View key={payment.id} style={[styles.timelineItem, settings.compactMode && { paddingVertical: 8 }]}>
                   {/* Vertical Track Line */}
                   {index !== recentPayments.length - 1 && (
-                    <View style={[styles.timelineLine, { backgroundColor: colors.border }]} />
+                    <View style={[styles.timelineLine, { backgroundColor: colors.border }, settings.compactMode && { top: 30 }]} />
                   )}
                   {/* Timeline Avatar Node */}
-                  <View style={[styles.timelineDot, { backgroundColor: `${colors.primary}15` }]}>
-                    <Text style={{ color: colors.primary, fontWeight: '800', fontSize: 14 }}>
+                  <View style={[styles.timelineDot, { backgroundColor: `${colors.primary}15` }, settings.compactMode && { width: 32, height: 32, marginRight: 12 }]}>
+                    <Text style={{ color: colors.primary, fontWeight: '800', fontSize: settings.compactMode ? 12 : 14 }}>
                       {(payment.loans?.customers?.name || 'U').charAt(0).toUpperCase()}
                     </Text>
                   </View>
@@ -715,6 +599,9 @@ const styles = StyleSheet.create({
   greeting: { fontSize: 14, fontWeight: '500' },
   title: { fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
   settingsButton: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  syncRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
+  syncDot: { width: 6, height: 6, borderRadius: 3, opacity: 0.8 },
+  pullHint: { fontSize: 11, fontWeight: '600', letterSpacing: 0.2 },
 
   // Hero Card Styles
   heroCard: { width: '100%', borderRadius: 24, padding: 24, marginTop: 4, elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, overflow: 'hidden' },

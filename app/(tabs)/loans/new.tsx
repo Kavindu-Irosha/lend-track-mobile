@@ -105,9 +105,11 @@ export default function NewLoanScreen() {
     return calculateInterestAmount(
       parseFloat(amount) || 0,
       parseFloat(interestValue) || 0,
-      interestType
+      interestType,
+      parseInt(tenure) || 1,
+      installmentType
     )
-  }, [amount, interestValue, interestType, interestModel, tenure])
+  }, [amount, interestValue, interestType, interestModel, tenure, installmentType])
 
   const totalPayable = (parseFloat(amount) || 0) + calculatedInterest
   const isInterestOnly = interestModel === 'interest_only'

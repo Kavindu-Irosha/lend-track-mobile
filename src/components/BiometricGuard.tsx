@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
 import { useSecurity } from '@/src/context/SecurityContext'
 import { useAuth } from '@/src/context/AuthContext'
 import { useTheme } from '@/src/context/ThemeContext'
-import { Fingerprint, Lock, ShieldCheck } from 'lucide-react-native'
+import { useSettings } from '@/src/context/SettingsContext'
+import { Fingerprint, Lock, ShieldCheck, LogOut } from 'lucide-react-native'
 import Animated, { 
   FadeIn, 
   ZoomIn, 
@@ -18,8 +19,9 @@ import Animated, {
 
 export default function BiometricGuard() {
   const { authenticate, isAuthenticated, isBiometricEnabled, loading } = useSecurity()
-  const { user } = useAuth()
+  const { user, signOut } = useAuth()
   const { colors } = useTheme()
+  const { settings } = useSettings()
   
   // Dual-Phase Ripple Animations
   const pulse1 = useSharedValue(0)
@@ -64,13 +66,14 @@ export default function BiometricGuard() {
     >
       <Animated.View entering={ZoomIn.duration(600).springify()} style={styles.content}>
         <View style={styles.animationMasterContainer}>
-          {/* Ripple 1 */}
-          <Animated.View style={[styles.ripple, { borderColor: colors.primary }, ring1Style]} />
-          {/* Ripple 2 */}
-          <Animated.View style={[styles.ripple, { borderColor: colors.primary }, ring2Style]} />
-          
-          {/* Rotating "Scope" Ring */}
-          <Animated.View style={[styles.scopeRing, { borderColor: colors.primary + '30' }, rotateStyle]} />
+          {/* Ripples & Scope (Disabled in Performance Mode) */}
+          {!settings.performanceMode && (
+            <>
+              <Animated.View style={[styles.ripple, { borderColor: colors.primary }, ring1Style]} />
+              <Animated.View style={[styles.ripple, { borderColor: colors.primary }, ring2Style]} />
+              <Animated.View style={[styles.scopeRing, { borderColor: colors.primary + '30' }, rotateStyle]} />
+            </>
+          )}
           
           <Animated.View style={[styles.iconContainer, { backgroundColor: colors.primaryBg }, iconStyle]}>
             <View style={[styles.innerGlow, { backgroundColor: colors.primary + '10' }]} />
@@ -94,6 +97,18 @@ export default function BiometricGuard() {
             <ShieldCheck size={22} color="#fff" />
             <Text style={styles.buttonText}>Authenticate</Text>
           </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.signOutButton}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+            signOut()
+          }}
+          activeOpacity={0.7}
+        >
+          <LogOut size={16} color={colors.textTertiary} />
+          <Text style={[styles.signOutText, { color: colors.textTertiary }]}>Switch Account / Sign Out</Text>
         </TouchableOpacity>
 
         <View style={styles.footer}>
@@ -204,5 +219,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     letterSpacing: 0.3,
+  },
+  signOutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  signOutText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 })

@@ -13,6 +13,9 @@ import CustomAlert from '@/src/components/CustomAlert'
 import AnimatedSplash from '@/src/components/AnimatedSplash'
 import BiometricGuard from '@/src/components/BiometricGuard'
 import Toast from '@/src/components/Toast'
+import ErrorBoundary from '@/src/components/ErrorBoundary'
+import { DashboardProvider } from '@/src/context/DashboardContext'
+import SettingsTransitionOverlay from '@/src/components/SettingsTransitionOverlay'
 
 // Keep the native splash visible while we load resources
 SplashScreen.preventAutoHideAsync()
@@ -146,6 +149,7 @@ function RootLayoutNav() {
       <BiometricGuard />
       <CustomAlert />
       <Toast />
+      <SettingsTransitionOverlay />
     </>
   )
 }
@@ -157,7 +161,11 @@ export default function RootLayout() {
         <AlertProvider>
           <SecurityProvider>
             <AuthProvider>
-              <RootLayoutNav />
+              <DashboardProvider>
+                <ErrorBoundary>
+                  <RootLayoutNav />
+                </ErrorBoundary>
+              </DashboardProvider>
             </AuthProvider>
           </SecurityProvider>
         </AlertProvider>

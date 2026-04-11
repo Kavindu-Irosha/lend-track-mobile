@@ -54,7 +54,12 @@ export default function LoanCard({
           borderWidth: 1,
           padding: compact ? 12 : 16,
           marginBottom: compact ? 10 : 16,
-          borderRadius: compact ? 16 : 20,
+          borderRadius: compact ? 16 : 24,
+          shadowColor: colors.primary,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: compact ? 0 : 0.03,
+          shadowRadius: 12,
+          elevation: compact ? 0 : 2,
         }
       ]}
       onPress={onPress}

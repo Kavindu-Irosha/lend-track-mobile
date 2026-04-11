@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTheme } from '@/src/context/ThemeContext'
 import { useSettings } from '@/src/context/SettingsContext'
 import { useAlert } from '@/src/context/AlertContext'
-import { ArrowLeft, Sun, Moon, Smartphone, Palette, LayoutGrid, Hash, Calendar, Phone, Globe, RotateCcw } from 'lucide-react-native'
+import { ArrowLeft, Sun, Moon, Smartphone, Palette, LayoutGrid, Hash, Calendar, Phone, Globe, RotateCcw, Zap, Vibration } from 'lucide-react-native'
 import * as Haptics from 'expo-haptics'
 
 function ToggleRow({ label, sub, value, onToggle, iconColor, icon: Icon, isDark, colors }: any) {
@@ -164,6 +164,39 @@ export default function DisplaySettingsScreen() {
                 keyboardType="phone-pad"
               />
             </View>
+          </View>
+        </Animated.View>
+
+        {/* Performance */}
+        <Animated.View entering={FadeInDown.delay(180).duration(400).springify()}>
+          <View style={st.sectionHeader}>
+            <View style={[st.sectionIcon, { backgroundColor: 'rgba(234,179,8,0.15)' }]}>
+              <Zap size={16} color="#eab308" />
+            </View>
+            <Text style={[st.sectionTitle, { color: colors.text }]}>Optimization</Text>
+          </View>
+          <View style={[st.card, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+            <ToggleRow 
+              label="Performance Mode" 
+              sub="Simplify animations for low-end devices" 
+              value={settings.performanceMode} 
+              onToggle={(v: boolean) => updateSetting('performanceMode', v)} 
+              icon={Zap} 
+              iconColor="#eab308" 
+              isDark={isDark} 
+              colors={colors} 
+            />
+            <View style={[st.divider, { backgroundColor: colors.border }]} />
+            <ToggleRow 
+              label="Haptic Feedback" 
+              sub="Physical vibration on interaction" 
+              value={settings.hapticsEnabled} 
+              onToggle={(v: boolean) => updateSetting('hapticsEnabled', v)} 
+              icon={Vibration} 
+              iconColor="#10b981" 
+              isDark={isDark} 
+              colors={colors} 
+            />
           </View>
         </Animated.View>
 

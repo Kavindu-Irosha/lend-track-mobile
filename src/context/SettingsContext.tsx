@@ -26,6 +26,10 @@ export interface AppSettings {
   // Regional
   dateFormat: 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY-MM-DD'
   phonePrefix: string
+  
+  // Performance
+  performanceMode: boolean
+  hapticsEnabled: boolean
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -43,16 +47,22 @@ const DEFAULT_SETTINGS: AppSettings = {
   showDecimals: true,
   dateFormat: 'DD/MM/YYYY',
   phonePrefix: '+94',
+  performanceMode: false,
+  hapticsEnabled: true,
 }
 
 interface SettingsContextType {
   settings: AppSettings
+  isApplying: boolean
+  triggerLayoutTransition: (callback: () => void) => void
   updateSetting: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void
   resetSettings: () => void
 }
 
 const SettingsContext = createContext<SettingsContextType>({
   settings: DEFAULT_SETTINGS,
+  isApplying: false,
+  triggerLayoutTransition: () => {},
   updateSetting: () => {},
   resetSettings: () => {},
 })
@@ -61,6 +71,7 @@ const STORAGE_KEY = '@lendtrack_app_settings'
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS)
+  const [isApplying, setIsApplying] = useState(false)
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY).then((saved) => {
@@ -77,23 +88,46 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     })
   }, [])
 
+  const triggerLayoutTransition = (callback: () => void) => {
+    setIsApplying(true)
+    // Delay setting change slightly to let overlay appear
+    setTimeout(() => {
+      callback()
+      // Let layout recalculate before removing overlay
+      setTimeout(() => {
+        setIsApplying(false)
+      }, 600)
+    }, 100)
+  }
+
   const updateSetting = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
-    setSettings((prev) => {
-      const next = { ...prev, [key]: value }
-      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-      updateFormatCache(next.defaultCurrency, next.showDecimals, next.dateFormat)
-      return next
-    })
+    const applyUpdate = () => {
+      setSettings((prev) => {
+        const next = { ...prev, [key]: value }
+        AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+        updateFormatCache(next.defaultCurrency, next.showDecimals, next.dateFormat)
+        return next
+      })
+    }
+
+    // Toggling layout-heavy settings triggers a global transition for smoothness
+    if (key === 'compactMode' || key === 'performanceMode') {
+      triggerLayoutTransition(applyUpdate)
+    } else {
+      applyUpdate()
+    }
   }
 
   const resetSettings = () => {
-    setSettings(DEFAULT_SETTINGS)
-    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_SETTINGS))
-    updateFormatCache(DEFAULT_SETTINGS.defaultCurrency, DEFAULT_SETTINGS.showDecimals, DEFAULT_SETTINGS.dateFormat)
+    triggerLayoutTransition(() => {
+      setSettings(DEFAULT_SETTINGS)
+      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_SETTINGS))
+      updateFormatCache(DEFAULT_SETTINGS.defaultCurrency, DEFAULT_SETTINGS.showDecimals, DEFAULT_SETTINGS.dateFormat)
+    })
   }
 
   return (
-    <SettingsContext.Provider value={{ settings, updateSetting, resetSettings }}>
+    <SettingsContext.Provider value={{ settings, isApplying, triggerLayoutTransition, updateSetting, resetSettings }}>
       {children}
     </SettingsContext.Provider>
   )

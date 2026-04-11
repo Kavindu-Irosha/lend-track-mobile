@@ -16,14 +16,22 @@ export type Loan = {
   amount: number
   interest: number
   interest_type: 'flat' | 'percent'
-  interest_rate?: number
+  interest_model: 'flat' | 'reducing' | 'interest_only'
+  interest_rate: number
   installment_type: 'daily' | 'weekly' | 'monthly'
   start_date: string
   due_date: string
   status?: 'active' | 'completed' | 'overdue'
+  penalty_enabled: boolean
+  penalty_type?: 'fixed' | 'daily'
+  penalty_value?: number
   penalty_fee?: number
   purpose?: string
+  collateral_details?: string
   created_at: string
+  // Relations
+  customers?: { id: string, name: string }
+  payments?: { amount: number }[]
 }
 
 export type Payment = {
@@ -35,5 +43,7 @@ export type Payment = {
   payment_method?: string
   reference_id?: string
   created_at: string
+  // Relations
+  loans?: { id: string, customers?: { id: string, name: string } }
 }
 

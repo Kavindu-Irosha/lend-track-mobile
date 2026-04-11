@@ -9,15 +9,28 @@ export type PenaltyType = 'fixed' | 'daily'
  */
 export function calculateInterestAmount(
   principal: number,
-  interestValue: number,
-  type: InterestType
+  interestRate: number, // Treating this as % per month for professional accuracy
+  type: InterestType,
+  tenureValue: number = 1,
+  installmentType: InstallmentType = 'monthly'
 ): number {
   if (type === 'flat') {
-    return interestValue
+    return interestRate
   }
-  // For 'percent' and 'reducing', we treat the interestValue as the total rate for the loan duration
-  // Professional lenders usually treat this as a monthly rate, but for simplicity:
-  return (principal * interestValue) / 100
+  
+  // Convert tenure into months
+  let monthsMultiplier = tenureValue
+  if (installmentType === 'daily') {
+    monthsMultiplier = tenureValue / 30
+  } else if (installmentType === 'weekly') {
+    monthsMultiplier = tenureValue / 4.345 // Average weeks in a month
+  }
+  
+  // Total Interest = Principal * MonthlyRate * DurationInMonths
+  const total = principal * (interestRate / 100) * monthsMultiplier
+  
+  // Return rounded to 2 decimal places for financial precision
+  return Math.round(total * 100) / 100
 }
 
 /**
@@ -26,13 +39,16 @@ export function calculateInterestAmount(
  */
 export function calculateEMI(
   principal: number,
-  annualRate: number,
+  annualRate: number, // Use monthly rate if tenure is in months
   tenureMonths: number
 ): number {
   if (annualRate === 0) return principal / tenureMonths
-  const r = (annualRate / 100) / 12
+  const r = (annualRate / 100) // This logic assumes rate is per month
   const n = tenureMonths
   const emi = (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1)
+  
+  // Use Math.ceil to favor the lender slighty OR Math.round for strict accuracy
+  // Cent-level precision to avoid huge drifts
   return Math.round(emi * 100) / 100
 }
 

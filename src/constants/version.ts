@@ -1,8 +1,8 @@
 import Constants from 'expo-constants'
 
-export const APP_VERSION = Constants.expoConfig?.version || '2.1.0'
-export const BUILD_NUMBER = "2026.04.11.01"
-export const LAST_OTA_UPDATE = "2026-04-11 23:05"
+export const APP_VERSION = Constants.expoConfig?.version || '2.2.0'
+export const BUILD_NUMBER = "2026.04.11.02"
+export const LAST_OTA_UPDATE = "2026-04-11 23:35"
 
 export type ChangelogItem = {
   version: string;
@@ -12,6 +12,20 @@ export type ChangelogItem = {
 }
 
 export const CHANGELOG: ChangelogItem[] = [
+  {
+    version: "2.2.0",
+    date: "2026-04-11",
+    title: "Enterprise Audit & Premium UI",
+    notes: [
+      "Financial Engine: Implemented Monthly Interest Rate scaling with penny-drift protection.",
+      "Performance Mode: Integrated dynamic animation & haptic scaling for low-end devices.",
+      "Premium UI Refinement: Redesigned Light Theme with soft primary accents and glassmorphic borders.",
+      "Compact Mode: High-density layout option for power users with responsive card scaling.",
+      "Security Resilience: Added 'Sign Out' emergency bypass to Biometric Guard to prevent lockout.",
+      "Global Error Handling: Integrated ErrorBoundary with recovery screen for all critical crashes.",
+      "Smart Caching: Integrated DashboardContext with 1-min intelligent data retention.",
+    ]
+  },
   {
     version: "2.1.0",
     date: "2026-04-11",
