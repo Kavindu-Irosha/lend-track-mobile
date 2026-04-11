@@ -1,6 +1,6 @@
 {
   "name": "lend-track-mobile",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
@@ -16,6 +16,7 @@
     "base64-arraybuffer": "^1.0.2",
     "date-fns": "^4.1.0",
     "expo": "~54.0.33",
+    "expo-constants": "~18.0.13",
     "expo-file-system": "~19.0.21",
     "expo-haptics": "~15.0.8",
     "expo-image-picker": "~17.0.10",

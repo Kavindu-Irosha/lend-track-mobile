@@ -1,6 +1,8 @@
-export const APP_VERSION = "2.0.0"
-export const BUILD_NUMBER = "2026.04.10.01"
-export const LAST_OTA_UPDATE = "2026-04-11 22:25"
+import Constants from 'expo-constants'
+
+export const APP_VERSION = Constants.expoConfig?.version || '2.1.0'
+export const BUILD_NUMBER = "2026.04.11.01"
+export const LAST_OTA_UPDATE = "2026-04-11 23:05"
 
 export type ChangelogItem = {
   version: string;
@@ -10,6 +12,18 @@ export type ChangelogItem = {
 }
 
 export const CHANGELOG: ChangelogItem[] = [
+  {
+    version: "2.1.0",
+    date: "2026-04-11",
+    title: "EAS Automation & UI Polish",
+    notes: [
+      "Dynamic versioning system — no more hardcoded version strings.",
+      "Automated CI/CD with GitHub Actions for OTA updates.",
+      "Redesigned Alerts summary layout for better space utilization.",
+      "Added Deployment Status to Settings for tracking 'Magic Updates'.",
+      "Removed native splash icon to prevent logo flicker.",
+    ]
+  },
   {
     version: "2.0.0",
     date: "2026-04-10",
