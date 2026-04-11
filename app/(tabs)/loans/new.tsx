@@ -82,7 +82,7 @@ export default function NewLoanScreen() {
   const [amount, setAmount] = useState('')
   const [interestType, setInterestType] = useState<InterestType>('flat')
   const [interestValue, setInterestValue] = useState(settings.defaultInterestRate || '0')
-  const [interestModel, setInterestModel] = useState<'flat' | 'reducing'>('flat')
+  const [interestModel, setInterestModel] = useState<'flat' | 'reducing' | 'interest_only'>('flat')
   const [tenure, setTenure] = useState('1')
   const [installmentType, setInstallmentType] = useState<'daily' | 'weekly' | 'monthly'>(settings.defaultInstallmentType || 'monthly')
   const [startDate, setStartDate] = useState(new Date())
@@ -110,14 +110,23 @@ export default function NewLoanScreen() {
   }, [amount, interestValue, interestType, interestModel, tenure])
 
   const totalPayable = (parseFloat(amount) || 0) + calculatedInterest
-  const installmentAmount = Math.ceil(totalPayable / (parseInt(tenure) || 1))
+  const isInterestOnly = interestModel === 'interest_only'
+  
+  const installmentAmount = isInterestOnly && calculatedInterest > 0 
+    ? calculatedInterest 
+    : Math.ceil(totalPayable / (parseInt(tenure) || 1))
+
+  const derivedTenure = isInterestOnly && calculatedInterest > 0 
+    ? Math.ceil(totalPayable / calculatedInterest) 
+    : parseInt(tenure) || 1
 
   useEffect(() => {
-    if (amount && tenure && installmentType) {
-      const newDueDate = calculateDueDate(startDate, installmentType, parseInt(tenure) || 0)
+    if (amount && installmentType && (tenure || isInterestOnly)) {
+      const activeTenure = isInterestOnly ? derivedTenure : (parseInt(tenure) || 0)
+      const newDueDate = calculateDueDate(startDate, installmentType, activeTenure)
       setDueDate(new Date(newDueDate))
     }
-  }, [startDate, tenure, installmentType, amount])
+  }, [startDate, tenure, installmentType, amount, isInterestOnly, derivedTenure])
 
   useFocusEffect(
     useCallback(() => {
@@ -173,11 +182,11 @@ export default function NewLoanScreen() {
   const handleSave = async () => {
     // Final Security Pass
     const now = new Date()
-    const oneYearAgo = new Date()
-    oneYearAgo.setFullYear(now.getFullYear() - 1)
+    const fiveYearsAgo = new Date()
+    fiveYearsAgo.setFullYear(now.getFullYear() - 5)
 
-    if (startDate < oneYearAgo) {
-      showAlert({ title: 'Invalid Date', message: 'Start date cannot be older than 1 year.', type: 'error' })
+    if (startDate < fiveYearsAgo) {
+      showAlert({ title: 'Invalid Date', message: 'Start date cannot be older than 5 years.', type: 'error' })
       return
     }
     if (dueDate <= startDate) {
@@ -501,6 +510,9 @@ export default function NewLoanScreen() {
                       <TouchableOpacity onPress={() => setInterestModel('reducing')} style={[styles.toggle, interestModel === 'reducing' && { backgroundColor: colors.primary }]}>
                         <Text style={{ color: interestModel === 'reducing' ? '#fff' : colors.textSecondary, fontWeight: '700', fontSize: 13 }}>EMI (Reducing)</Text>
                       </TouchableOpacity>
+                      <TouchableOpacity onPress={() => setInterestModel('interest_only')} style={[styles.toggle, interestModel === 'interest_only' && { backgroundColor: colors.primary }]}>
+                        <Text style={{ color: interestModel === 'interest_only' ? '#fff' : colors.textSecondary, fontWeight: '700', fontSize: 12 }}>Interest Only</Text>
+                      </TouchableOpacity>
                     </View>
                   </Animated.View>
 
@@ -528,8 +540,34 @@ export default function NewLoanScreen() {
                   </View>
 
                   {/* Tenure */}
-                  <Animated.View entering={FadeInDown.delay(100).duration(300)}>
-                    <FormInput label="Tenure (Installments)" value={tenure} onChangeText={setTenure} keyboardType="number-pad" />
+                  {!isInterestOnly && (
+                    <Animated.View entering={FadeInDown.delay(100).duration(300)}>
+                      <FormInput label="Tenure (Installments)" value={tenure} onChangeText={setTenure} keyboardType="number-pad" />
+                    </Animated.View>
+                  )}
+
+                  {/* Disbursement Date */}
+                  <Animated.View entering={FadeInDown.delay(95).duration(300)}>
+                    <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Disbursement Date</Text>
+                    <TouchableOpacity
+                      onPress={() => setShowStartDatePicker(true)}
+                      style={[styles.dateSelector, { backgroundColor: isDark ? '#1e293b' : '#f1f5f9' }]}
+                    >
+                      <CalendarIcon size={18} color={colors.primary} />
+                      <Text style={[styles.dateSelectorText, { color: colors.text }]}>{format(startDate, 'MMM dd, yyyy')}</Text>
+                    </TouchableOpacity>
+                    {showStartDatePicker && (
+                      <DateTimePicker
+                        value={startDate}
+                        mode="date"
+                        display="default"
+                        maximumDate={new Date()}
+                        onChange={(event, date) => {
+                          setShowStartDatePicker(Platform.OS === 'ios')
+                          if (date) setStartDate(date)
+                        }}
+                      />
+                    )}
                   </Animated.View>
 
                   {/* Penalty Section */}
@@ -620,7 +658,7 @@ export default function NewLoanScreen() {
                           <TrendingUp size={16} color="#f59e0b" />
                         </View>
                         <Text style={[styles.reviewLabel, { color: colors.textSecondary }]}>Model</Text>
-                        <Text style={[styles.reviewValue, { color: colors.text }]}>{interestModel === 'flat' ? 'Flat Rate' : 'EMI (Reducing)'}</Text>
+                        <Text style={[styles.reviewValue, { color: colors.text }]}>{interestModel === 'flat' ? 'Flat Rate' : interestModel === 'interest_only' ? 'Interest Installments' : 'EMI (Reducing)'}</Text>
                       </View>
                       <View style={[styles.reviewDivider, { backgroundColor: colors.border }]} />
                       <View style={styles.reviewRow}>
@@ -628,7 +666,7 @@ export default function NewLoanScreen() {
                           <CalendarIcon size={16} color="#10b981" />
                         </View>
                         <Text style={[styles.reviewLabel, { color: colors.textSecondary }]}>Schedule</Text>
-                        <Text style={[styles.reviewValue, { color: colors.text }]}>{tenure} {installmentType} × {formatCurrency(installmentAmount)}</Text>
+                        <Text style={[styles.reviewValue, { color: colors.text }]}>{derivedTenure} {installmentType} × {formatCurrency(installmentAmount)}</Text>
                       </View>
                       <View style={[styles.reviewDivider, { backgroundColor: colors.border }]} />
                       <View style={styles.reviewRow}>
@@ -742,6 +780,8 @@ const styles = StyleSheet.create({
   toggleContainer: { flexDirection: 'row', height: 48, borderRadius: 12, padding: 4 },
   toggle: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 10 },
   sectionDivider: { height: 1, marginVertical: 24 },
+  dateSelector: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 12, gap: 10, marginBottom: 24, borderWidth: 1, borderColor: 'transparent' },
+  dateSelectorText: { fontSize: 16, fontWeight: '600' },
 
   // Penalty
   penaltyHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
