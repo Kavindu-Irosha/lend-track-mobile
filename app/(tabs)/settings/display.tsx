@@ -7,6 +7,7 @@ import { useTheme } from '@/src/context/ThemeContext'
 import { useSettings } from '@/src/context/SettingsContext'
 import { useAlert } from '@/src/context/AlertContext'
 import { ArrowLeft, Sun, Moon, Smartphone, Palette, LayoutGrid, Hash, Calendar, Phone, Globe, RotateCcw, Zap, Vibrate } from 'lucide-react-native'
+import { triggerHapticImpact, triggerHapticSelection, triggerHapticNotification } from '@/src/lib/utils'
 import * as Haptics from 'expo-haptics'
 
 function ToggleRow({ label, sub, value, onToggle, iconColor, icon: Icon, isDark, colors }: any) {
@@ -22,7 +23,7 @@ function ToggleRow({ label, sub, value, onToggle, iconColor, icon: Icon, isDark,
         </View>
       </View>
       <TouchableOpacity
-        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onToggle(!value) }}
+        onPress={() => { triggerHapticImpact(); onToggle(!value) }}
         style={[st.customSwitch, { backgroundColor: value ? iconColor : isDark ? '#334155' : '#cbd5e1' }]}
         activeOpacity={0.8}
       >
@@ -45,14 +46,14 @@ export default function DisplaySettingsScreen() {
   ]
 
   const handleReset = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    triggerHapticImpact(Haptics.ImpactFeedbackStyle.Medium)
     showAlert({
       title: 'Reset All Settings',
       message: 'This will restore all preferences to factory defaults across all sections.',
       type: 'warning',
       buttons: [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Reset', style: 'destructive', onPress: () => { resetSettings(); setMode('system'); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success) } },
+        { text: 'Reset', style: 'destructive', onPress: () => { resetSettings(); setMode('system'); triggerHapticNotification() } },
       ],
     })
   }
@@ -87,7 +88,7 @@ export default function DisplaySettingsScreen() {
                 <TouchableOpacity
                   key={option.key}
                   style={[st.themeRow, isSelected && { backgroundColor: isDark ? `${colors.primary}10` : `${colors.primary}06` }, index < themeOptions.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }]}
-                  onPress={() => { Haptics.selectionAsync(); setMode(option.key) }}
+                  onPress={() => { triggerHapticSelection(); setMode(option.key) }}
                   activeOpacity={0.7}
                 >
                   <View style={st.themeRowLeft}>
@@ -143,7 +144,7 @@ export default function DisplaySettingsScreen() {
                   <TouchableOpacity
                     key={opt.key}
                     style={[st.chip, { backgroundColor: settings.dateFormat === opt.key ? '#0ea5e9' : isDark ? '#1e293b' : '#f1f5f9' }]}
-                    onPress={() => { Haptics.selectionAsync(); updateSetting('dateFormat', opt.key as any) }}
+                    onPress={() => { triggerHapticSelection(); updateSetting('dateFormat', opt.key as any) }}
                     activeOpacity={0.8}
                   >
                     <Text style={{ color: settings.dateFormat === opt.key ? '#fff' : colors.textSecondary, fontSize: 11, fontWeight: '700' }}>{opt.label}</Text>

@@ -19,6 +19,7 @@ import Animated, {
   FadeOut,
   SharedValue,
 } from 'react-native-reanimated'
+import { isPerformanceMode } from '../lib/utils'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 
@@ -59,33 +60,40 @@ export default function AnimatedSplash({ onFinish }: SplashScreenProps) {
 
   useEffect(() => {
     // 1. Logo bounces in with slight rotation
-    logoScale.value = withSequence(
-      withTiming(1.15, { duration: 500, easing: Easing.out(Easing.back(2)) }),
-      withTiming(1, { duration: 250, easing: Easing.out(Easing.quad) })
-    )
-    logoRotate.value = withSequence(
-      withTiming(-8, { duration: 250, easing: Easing.out(Easing.quad) }),
-      withTiming(6, { duration: 200, easing: Easing.out(Easing.quad) }),
-      withTiming(0, { duration: 200, easing: Easing.out(Easing.quad) })
-    )
+    if (isPerformanceMode()) {
+      logoScale.value = withTiming(1, { duration: 300 })
+      logoRotate.value = 0
+    } else {
+      logoScale.value = withSequence(
+        withTiming(1.15, { duration: 500, easing: Easing.out(Easing.back(2)) }),
+        withTiming(1, { duration: 250, easing: Easing.out(Easing.quad) })
+      )
+      logoRotate.value = withSequence(
+        withTiming(-8, { duration: 250, easing: Easing.out(Easing.quad) }),
+        withTiming(6, { duration: 200, easing: Easing.out(Easing.quad) }),
+        withTiming(0, { duration: 200, easing: Easing.out(Easing.quad) })
+      )
+    }
 
     // 2. Title fades in and slides up
-    titleOpacity.value = withDelay(400, withTiming(1, { duration: 500 }))
-    titleTranslateY.value = withDelay(400, withTiming(0, { duration: 500, easing: Easing.out(Easing.quad) }))
+    titleOpacity.value = withDelay(isPerformanceMode() ? 100 : 400, withTiming(1, { duration: 500 }))
+    titleTranslateY.value = withDelay(isPerformanceMode() ? 100 : 400, withTiming(0, { duration: 500, easing: Easing.out(Easing.quad) }))
 
     // 3. Subtitle fades in
-    subtitleOpacity.value = withDelay(700, withTiming(1, { duration: 400 }))
-    subtitleTranslateY.value = withDelay(700, withTiming(0, { duration: 400, easing: Easing.out(Easing.quad) }))
+    subtitleOpacity.value = withDelay(isPerformanceMode() ? 200 : 700, withTiming(1, { duration: 400 }))
+    subtitleTranslateY.value = withDelay(isPerformanceMode() ? 200 : 700, withTiming(0, { duration: 400, easing: Easing.out(Easing.quad) }))
 
     // 4. Shimmer sweep across the title
-    shimmerPosition.value = withDelay(
-      900,
-      withRepeat(
-        withTiming(1, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
-        -1,
-        false
+    if (!isPerformanceMode()) {
+      shimmerPosition.value = withDelay(
+        900,
+        withRepeat(
+          withTiming(1, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
+          -1,
+          false
+        )
       )
-    )
+    }
 
     // 5. Loading dots bounce
     dot1.value = withDelay(
@@ -135,10 +143,10 @@ export default function AnimatedSplash({ onFinish }: SplashScreenProps) {
       )
     )
 
-    // 7. Auto-finish after 2.5 seconds
+    // 7. Auto-finish after 2.5 seconds (Faster in performance mode)
     const timeout = setTimeout(() => {
       onFinish()
-    }, 2500)
+    }, isPerformanceMode() ? 1200 : 2500)
 
     return () => clearTimeout(timeout)
   }, [])

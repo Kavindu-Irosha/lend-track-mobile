@@ -8,7 +8,7 @@ import { useSettings } from '@/src/context/SettingsContext'
 import { useSecurity } from '@/src/context/SecurityContext'
 import { useAlert } from '@/src/context/AlertContext'
 import { ArrowLeft, Fingerprint, Eye, EyeOff, Lock, ShieldCheck, Info } from 'lucide-react-native'
-import * as Haptics from 'expo-haptics'
+import { triggerHapticImpact, triggerHapticSelection } from '@/src/lib/utils'
 
 function ToggleRow({ label, sub, value, onToggle, iconColor, icon: Icon, isDark, colors }: any) {
   return (
@@ -23,7 +23,7 @@ function ToggleRow({ label, sub, value, onToggle, iconColor, icon: Icon, isDark,
         </View>
       </View>
       <TouchableOpacity
-        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onToggle(!value) }}
+        onPress={() => { triggerHapticImpact(); onToggle(!value) }}
         style={[st.customSwitch, { backgroundColor: value ? iconColor : isDark ? '#334155' : '#cbd5e1' }]}
         activeOpacity={0.8}
       >
@@ -140,7 +140,7 @@ export default function PrivacySettingsScreen() {
                 <TouchableOpacity
                   key={opt.key}
                   style={[st.chip, { backgroundColor: settings.autoLockTimer === opt.key ? '#3b82f6' : isDark ? '#1e293b' : '#f1f5f9' }]}
-                  onPress={() => { Haptics.selectionAsync(); updateSetting('autoLockTimer', opt.key as any) }}
+                  onPress={() => { triggerHapticSelection(); updateSetting('autoLockTimer', opt.key as any) }}
                   activeOpacity={0.8}
                 >
                   <Text style={{ color: settings.autoLockTimer === opt.key ? '#fff' : colors.textSecondary, fontSize: 13, fontWeight: '700' }}>{opt.label}</Text>

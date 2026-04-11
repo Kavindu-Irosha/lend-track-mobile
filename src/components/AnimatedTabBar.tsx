@@ -10,7 +10,7 @@ import Animated, {
   FadeOut,
 } from 'react-native-reanimated'
 import { useTheme } from '@/src/context/ThemeContext'
-import * as Haptics from 'expo-haptics'
+import { triggerHapticSelection } from '@/src/lib/utils'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
@@ -49,7 +49,7 @@ export default function AnimatedTabBar({ state, descriptors, navigation }: Botto
           })
 
           if (!isFocused && !event.defaultPrevented) {
-            Haptics.selectionAsync()
+            triggerHapticSelection()
             navigation.navigate(route.name)
           }
         }

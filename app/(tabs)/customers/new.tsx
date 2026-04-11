@@ -24,6 +24,7 @@ import FormInput from '@/src/components/FormInput'
 import LoadingSpinner from '@/src/components/LoadingSpinner'
 import { ArrowLeft, Camera, Image as ImageIcon, X, User, Phone, CreditCard, Shield, FileText, AlertCircle, Check } from 'lucide-react-native'
 import * as Haptics from 'expo-haptics'
+import { triggerHapticNotification } from '@/src/lib/utils'
 
 export default function NewCustomerScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>()
@@ -190,9 +191,9 @@ export default function NewCustomerScreen() {
 
       if (dbError) {
         setError(dbError.message)
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+        triggerHapticNotification(Haptics.NotificationFeedbackType.Error)
       } else {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+        triggerHapticNotification(Haptics.NotificationFeedbackType.Success)
         router.navigate('/(tabs)/customers')
       }
     } catch (err: any) {

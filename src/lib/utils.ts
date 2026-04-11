@@ -2,10 +2,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 
 const SETTINGS_KEY = '@lendtrack_app_settings'
 
-// Cached settings for synchronous formatting
+// Cached settings for synchronous formatting and feedback
 let cachedCurrency = 'Rs'
 let cachedShowDecimals = true
 let cachedDateFormat: 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY-MM-DD' = 'DD/MM/YYYY'
+let cachedHapticsEnabled = true
+let cachedPerformanceMode = false
 
 // Initialize cache from storage
 AsyncStorage.getItem(SETTINGS_KEY).then((saved) => {
@@ -15,14 +17,48 @@ AsyncStorage.getItem(SETTINGS_KEY).then((saved) => {
       if (parsed.defaultCurrency) cachedCurrency = parsed.defaultCurrency
       if (typeof parsed.showDecimals === 'boolean') cachedShowDecimals = parsed.showDecimals
       if (parsed.dateFormat) cachedDateFormat = parsed.dateFormat
+      if (typeof parsed.hapticsEnabled === 'boolean') cachedHapticsEnabled = parsed.hapticsEnabled
+      if (typeof parsed.performanceMode === 'boolean') cachedPerformanceMode = parsed.performanceMode
     } catch (e) { /* ignore */ }
   }
 })
 
-export function updateFormatCache(currency: string, showDecimals: boolean, dateFormat?: string) {
+export function updateOptimizationCache(
+  currency: string, 
+  showDecimals: boolean, 
+  dateFormat: string, 
+  haptics: boolean, 
+  performance: boolean
+) {
   cachedCurrency = currency
   cachedShowDecimals = showDecimals
-  if (dateFormat) cachedDateFormat = dateFormat as any
+  cachedDateFormat = dateFormat as any
+  cachedHapticsEnabled = haptics
+  cachedPerformanceMode = performance
+}
+
+import * as Haptics from 'expo-haptics'
+
+export function triggerHapticImpact(style = Haptics.ImpactFeedbackStyle.Light) {
+  if (cachedHapticsEnabled) {
+    Haptics.impactAsync(style)
+  }
+}
+
+export function triggerHapticNotification(type = Haptics.NotificationFeedbackType.Success) {
+  if (cachedHapticsEnabled) {
+    Haptics.notificationAsync(type)
+  }
+}
+
+export function triggerHapticSelection() {
+  if (cachedHapticsEnabled) {
+    Haptics.selectionAsync()
+  }
+}
+
+export function isPerformanceMode() {
+  return cachedPerformanceMode
 }
 
 /**

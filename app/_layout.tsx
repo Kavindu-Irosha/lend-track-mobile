@@ -16,6 +16,7 @@ import Toast from '@/src/components/Toast'
 import ErrorBoundary from '@/src/components/ErrorBoundary'
 import { DashboardProvider } from '@/src/context/DashboardContext'
 import SettingsTransitionOverlay from '@/src/components/SettingsTransitionOverlay'
+import { isPerformanceMode } from '@/src/lib/utils'
 
 // Keep the native splash visible while we load resources
 SplashScreen.preventAutoHideAsync()
@@ -136,7 +137,7 @@ function RootLayoutNav() {
           screenOptions={{
             headerShown: false,
             contentStyle: { backgroundColor: colors.background },
-            animation: 'slide_from_right',
+            animation: isPerformanceMode() ? 'fade' : 'slide_from_right',
           }}
         >
           <Stack.Screen name="(auth)" />

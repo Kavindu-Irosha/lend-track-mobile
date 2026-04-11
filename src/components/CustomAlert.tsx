@@ -30,6 +30,7 @@ import {
   ShieldAlert,
   LucideIcon,
 } from 'lucide-react-native'
+import { triggerHapticNotification, triggerHapticImpact, isPerformanceMode } from '@/src/lib/utils'
 import * as Haptics from 'expo-haptics'
 
 const { width } = Dimensions.get('window')
@@ -38,12 +39,12 @@ const ALERT_CONFIG: Record<string, {
   Icon: LucideIcon; 
   color: string; 
   bgGradient: string;
-  haptic: Haptics.NotificationFeedbackType 
+  haptic: string 
 }> = {
-  info: { Icon: Info, color: '#3b82f6', bgGradient: 'rgba(59,130,246,0.12)', haptic: Haptics.NotificationFeedbackType.Success },
-  success: { Icon: CheckCircle2, color: '#10b981', bgGradient: 'rgba(16,185,129,0.12)', haptic: Haptics.NotificationFeedbackType.Success },
-  warning: { Icon: ShieldAlert, color: '#f59e0b', bgGradient: 'rgba(245,158,11,0.12)', haptic: Haptics.NotificationFeedbackType.Warning },
-  error: { Icon: XCircle, color: '#ef4444', bgGradient: 'rgba(239,68,68,0.12)', haptic: Haptics.NotificationFeedbackType.Error },
+  info: { Icon: Info, color: '#3b82f6', bgGradient: 'rgba(59,130,246,0.12)', haptic: 'success' },
+  success: { Icon: CheckCircle2, color: '#10b981', bgGradient: 'rgba(16,185,129,0.12)', haptic: 'success' },
+  warning: { Icon: ShieldAlert, color: '#f59e0b', bgGradient: 'rgba(245,158,11,0.12)', haptic: 'warning' },
+  error: { Icon: XCircle, color: '#ef4444', bgGradient: 'rgba(239,68,68,0.12)', haptic: 'error' },
 }
 
 export default function CustomAlert() {
@@ -53,13 +54,18 @@ export default function CustomAlert() {
 
   useEffect(() => {
     if (visible && alert?.type) {
-      const hapticType = ALERT_CONFIG[alert.type]?.haptic || Haptics.NotificationFeedbackType.Success
-      Haptics.notificationAsync(hapticType)
-      // Bounce animation for icon
-      iconScale.value = withSequence(
-        withSpring(1.3, { damping: 8, stiffness: 200 }),
-        withSpring(1, { damping: 12 })
-      )
+      const hapticType = ALERT_CONFIG[alert.type]?.haptic || 'success'
+      triggerHapticNotification(hapticType as any)
+      
+      // Bounce animation for icon (Reduced in Performance Mode)
+      if (isPerformanceMode()) {
+        iconScale.value = 1
+      } else {
+        iconScale.value = withSequence(
+          withSpring(1.3, { damping: 8, stiffness: 200 }),
+          withSpring(1, { damping: 12 })
+        )
+      }
     } else {
       iconScale.value = 0
     }
@@ -98,7 +104,7 @@ export default function CustomAlert() {
         </Animated.View>
 
         <Animated.View
-          entering={ZoomIn.duration(300).springify().damping(18).stiffness(200)}
+          entering={isPerformanceMode() ? ZoomIn.duration(200) : ZoomIn.duration(300).springify().damping(18).stiffness(200)}
           exiting={ZoomOut.duration(200)}
           style={[
             styles.alertCard,
@@ -144,7 +150,10 @@ export default function CustomAlert() {
                       isCancel ? { backgroundColor: isDark ? '#334155' : '#f1f5f9', borderWidth: 1, borderColor: isDark ? '#475569' : '#e2e8f0' } :
                       { backgroundColor: config.color }
                     ]}
-                    onPress={() => handleButtonPress(btn.onPress)}
+                    onPress={() => {
+                       triggerHapticImpact()
+                       handleButtonPress(btn.onPress)
+                    }}
                     activeOpacity={0.8}
                   >
                     <Text style={[

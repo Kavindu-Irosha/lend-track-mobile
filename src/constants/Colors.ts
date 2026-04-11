@@ -34,6 +34,20 @@ export const Colors = {
     overlay: 'rgba(15, 23, 42, 0.4)', // Themed overlay
     inputBg: '#f8fafc',
     inputBorder: '#e2e8f0',
+    shadow: {
+      shadowColor: '#0f172a',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.06,
+      shadowRadius: 12,
+      elevation: 4,
+    },
+    shadowHeavy: {
+      shadowColor: '#0f172a',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.1,
+      shadowRadius: 20,
+      elevation: 8,
+    }
   },
   dark: {
     primary: '#818cf8',
@@ -70,6 +84,20 @@ export const Colors = {
     overlay: 'rgba(0,0,0,0.7)',
     inputBg: '#27272a',
     inputBorder: '#3f3f46',
+    shadow: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 10,
+      elevation: 6,
+    },
+    shadowHeavy: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 12 },
+      shadowOpacity: 0.5,
+      shadowRadius: 24,
+      elevation: 12,
+    }
   },
 }
 

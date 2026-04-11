@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTheme } from '@/src/context/ThemeContext'
 import { useSettings } from '@/src/context/SettingsContext'
 import { ArrowLeft, Bell, Clock, Calendar, Hash, AlertTriangle } from 'lucide-react-native'
-import * as Haptics from 'expo-haptics'
+import { triggerHapticImpact, triggerHapticSelection } from '@/src/lib/utils'
 
 function ToggleRow({ label, sub, value, onToggle, iconColor, isDark, colors }: any) {
   return (
@@ -16,7 +16,7 @@ function ToggleRow({ label, sub, value, onToggle, iconColor, isDark, colors }: a
         {sub && <Text style={[st.rowSub, { color: colors.textTertiary }]}>{sub}</Text>}
       </View>
       <TouchableOpacity
-        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onToggle(!value) }}
+        onPress={() => { triggerHapticImpact(); onToggle(!value) }}
         style={[st.customSwitch, { backgroundColor: value ? iconColor : isDark ? '#334155' : '#cbd5e1' }]}
         activeOpacity={0.8}
       >
@@ -95,7 +95,7 @@ export default function NotificationsSettingsScreen() {
                       <TouchableOpacity
                         key={d}
                         style={[st.chip, { backgroundColor: settings.reminderDaysBefore === d ? '#3b82f6' : isDark ? '#1e293b' : '#f1f5f9' }]}
-                        onPress={() => { Haptics.selectionAsync(); updateSetting('reminderDaysBefore', d) }}
+                        onPress={() => { triggerHapticSelection(); updateSetting('reminderDaysBefore', d) }}
                         activeOpacity={0.8}
                       >
                         <Text style={{ color: settings.reminderDaysBefore === d ? '#fff' : colors.textSecondary, fontSize: 14, fontWeight: '700' }}>{d}d</Text>

@@ -15,9 +15,10 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTheme } from '@/src/context/ThemeContext'
 import { useAuth } from '@/src/context/AuthContext'
 import { supabase } from '@/src/lib/supabase'
-import { formatCurrency, formatAppDate } from '@/src/lib/utils'
+import { formatCurrency, formatAppDate, triggerHapticNotification, triggerHapticImpact, isPerformanceMode } from '@/src/lib/utils'
 import { useSettings } from '@/src/context/SettingsContext'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import * as Haptics from 'expo-haptics'
 import StatsCard from '@/src/components/StatsCard'
 import LoadingSpinner from '@/src/components/LoadingSpinner'
 import { useDashboard } from '@/src/context/DashboardContext'
@@ -42,7 +43,6 @@ import {
   CircleDollarSign,
   Briefcase
 } from 'lucide-react-native'
-import * as Haptics from 'expo-haptics'
 import { format } from 'date-fns'
 import { LineChart } from 'react-native-chart-kit'
 
@@ -124,7 +124,7 @@ export default function DashboardScreen() {
   }, [settings.dailySummary, loading])
 
   const onRefresh = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+    triggerHapticNotification()
     fetchDashboardData(true)
   }
 
@@ -149,7 +149,10 @@ export default function DashboardScreen() {
           showsVerticalScrollIndicator={false}
         >
         {/* Header */}
-        <Animated.View entering={FadeInDown.duration(400).springify()} style={styles.header}>
+        <Animated.View 
+          entering={isPerformanceMode() ? FadeInDown : FadeInDown.duration(400).springify()} 
+          style={styles.header}
+        >
           <View>
             <Text style={[styles.greeting, { color: colors.textSecondary }]}>Welcome back</Text>
             <Text style={[styles.title, { color: colors.text }]}>Dashboard</Text>
@@ -161,8 +164,8 @@ export default function DashboardScreen() {
           <TouchableOpacity
             style={[styles.settingsButton, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
             onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-              router.push('/(tabs)/settings')
+              triggerHapticImpact()
+              router.navigate('/(tabs)/settings')
             }}
             activeOpacity={0.7}
           >
@@ -172,7 +175,7 @@ export default function DashboardScreen() {
 
         {/* Elite Hero Portfolio Card */}
         <Animated.View 
-          entering={FadeInDown.delay(50).duration(500).springify()} 
+          entering={isPerformanceMode() ? FadeInDown : FadeInDown.delay(50).duration(500).springify()} 
           style={[
             styles.heroCard, 
             { backgroundColor: colors.primary },
@@ -191,72 +194,75 @@ export default function DashboardScreen() {
           
           <View style={styles.heroSubRow}>
             <View style={styles.heroSubBlock}>
-              <View style={styles.heroSubIcon}><TrendingUp size={14} color="#fff" /></View>
+              <View style={[styles.heroSubIcon, settings.compactMode && { width: 24, height: 24 }]}><TrendingUp size={settings.compactMode ? 12 : 14} color="#fff" /></View>
               <View>
-                <Text style={styles.heroSubLabel}>Collected Capital</Text>
-                <Text style={styles.heroSubValue}>{formatCurrency(stats.totalCollected)}</Text>
+                <Text style={[styles.heroSubLabel, settings.compactMode && { fontSize: 9 }]}>Collected</Text>
+                <Text style={[styles.heroSubValue, settings.compactMode && { fontSize: 13 }]}>{formatCurrency(stats.totalCollected)}</Text>
               </View>
             </View>
-            <View style={styles.heroSubDivider} />
+            <View style={[styles.heroSubDivider, settings.compactMode && { height: 20, marginHorizontal: 8 }]} />
             <View style={styles.heroSubBlock}>
-              <View style={styles.heroSubIcon}><CircleDollarSign size={14} color="#fff" /></View>
+              <View style={[styles.heroSubIcon, settings.compactMode && { width: 24, height: 24 }]}><CircleDollarSign size={settings.compactMode ? 12 : 14} color="#fff" /></View>
               <View>
-                <Text style={styles.heroSubLabel}>Expected Profit</Text>
-                <Text style={styles.heroSubValue}>{formatCurrency(stats.expectedProfit)}</Text>
+                <Text style={[styles.heroSubLabel, settings.compactMode && { fontSize: 9 }]}>Profit</Text>
+                <Text style={[styles.heroSubValue, settings.compactMode && { fontSize: 13 }]}>{formatCurrency(stats.expectedProfit)}</Text>
               </View>
             </View>
           </View>
         </Animated.View>
 
         {/* Floating Quick Action Grid */}
-        <Animated.View entering={FadeInDown.delay(100).duration(500).springify()} style={styles.actionGrid}>
+        <Animated.View 
+          entering={isPerformanceMode() ? FadeInDown : FadeInDown.delay(100).duration(500).springify()} 
+          style={[styles.actionGrid, settings.compactMode && { marginTop: -14, marginBottom: 10 }]}
+        >
           <TouchableOpacity 
-            style={[styles.actionPillar, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]} 
+            style={[styles.actionPillar, { backgroundColor: colors.surface, borderColor: colors.cardBorder }, settings.compactMode && { paddingVertical: 10 }]} 
             activeOpacity={0.8}
             onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+              triggerHapticImpact(Haptics.ImpactFeedbackStyle.Medium)
               router.push('/(tabs)/customers/new')
             }}
           >
-            <View style={[styles.actionPillarIcon, { backgroundColor: `${colors.primary}15` }]}>
-              <UserPlus size={22} color={colors.primary} />
+            <View style={[styles.actionPillarIcon, { backgroundColor: `${colors.primary}15` }, settings.compactMode && { width: 36, height: 36, marginBottom: 4 }]}>
+              <UserPlus size={settings.compactMode ? 18 : 22} color={colors.primary} />
             </View>
-            <Text style={[styles.actionPillarText, { color: colors.text }]}>New Client</Text>
+            <Text style={[styles.actionPillarText, { color: colors.text }]}>Client</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
-            style={[styles.actionPillar, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]} 
+            style={[styles.actionPillar, { backgroundColor: colors.surface, borderColor: colors.cardBorder }, settings.compactMode && { paddingVertical: 10 }]} 
             activeOpacity={0.8}
             onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+              triggerHapticImpact(Haptics.ImpactFeedbackStyle.Medium)
               if (stats.customerCount === 0) showAlert({title: 'No Customers', message: 'Please add a customer first.', type: 'warning'})
               else router.push('/(tabs)/loans/new')
             }}
           >
-            <View style={[styles.actionPillarIcon, { backgroundColor: 'rgba(59, 130, 246, 0.15)' }]}>
-              <Briefcase size={22} color="#3b82f6" />
+            <View style={[styles.actionPillarIcon, { backgroundColor: 'rgba(59, 130, 246, 0.15)' }, settings.compactMode && { width: 36, height: 36, marginBottom: 4 }]}>
+              <Briefcase size={settings.compactMode ? 18 : 22} color="#3b82f6" />
             </View>
-            <Text style={[styles.actionPillarText, { color: colors.text }]}>Issue Loan</Text>
+            <Text style={[styles.actionPillarText, { color: colors.text }]}>Loan</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
-            style={[styles.actionPillar, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]} 
+            style={[styles.actionPillar, { backgroundColor: colors.surface, borderColor: colors.cardBorder }, settings.compactMode && { paddingVertical: 10 }]} 
             activeOpacity={0.8}
             onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+              triggerHapticImpact(Haptics.ImpactFeedbackStyle.Medium)
               if (stats.activeLoanCount === 0) showAlert({title: 'No Active Loans', message: 'You need an active loan to record payment.', type: 'warning'})
               else router.push('/(tabs)/payments/new')
             }}
           >
-            <View style={[styles.actionPillarIcon, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
-              <Receipt size={22} color="#10b981" />
+            <View style={[styles.actionPillarIcon, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }, settings.compactMode && { width: 36, height: 36, marginBottom: 4 }]}>
+              <Receipt size={settings.compactMode ? 18 : 22} color="#10b981" />
             </View>
-            <Text style={[styles.actionPillarText, { color: colors.text }]}>Payment</Text>
+            <Text style={[styles.actionPillarText, { color: colors.text }]}>Pay</Text>
           </TouchableOpacity>
         </Animated.View>
 
         {/* Pulse Alert for Red-Zone Overdue */}
-        <Animated.View entering={FadeInDown.delay(150).duration(400).springify()}>
+        <Animated.View entering={isPerformanceMode() ? FadeInDown : FadeInDown.delay(150).duration(400).springify()}>
           {stats.totalPending > 0 ? (
             <TouchableOpacity 
               style={[
@@ -295,7 +301,7 @@ export default function DashboardScreen() {
         </Animated.View>
 
         {/* Horizontal Market Analytics Row */}
-        <Animated.View entering={FadeInDown.delay(200).duration(400).springify()}>
+        <Animated.View entering={isPerformanceMode() ? FadeInDown : FadeInDown.delay(200).duration(400).springify()}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.analyticsScroll}>
             <View style={[styles.analyticPill, { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff' }]}>
               <Users size={16} color="#3b82f6" />
@@ -365,7 +371,7 @@ export default function DashboardScreen() {
                 <TouchableOpacity
                   key={range.id}
                   onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+                    triggerHapticImpact(Haptics.ImpactFeedbackStyle.Light)
                     setTimeRange(range.id as any)
                   }}
                   style={[
@@ -459,7 +465,7 @@ export default function DashboardScreen() {
                 }}
                 bezier
                 onDataPointClick={({ value, index }) => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+                  triggerHapticImpact()
                   setSelectedPoint({
                     label: Object.keys(contextChartData.labels).length > 0 ? contextChartData.labels[index] || "Date" : "Date",
                     in: contextChartData.inData[index] || 0,

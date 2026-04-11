@@ -56,7 +56,7 @@ import * as Haptics from 'expo-haptics'
 import { useAlert } from '@/src/context/AlertContext'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { calculateInterestAmount, calculateDueDate, InterestType, PenaltyType, calculateEMI } from '@/src/lib/financial'
-import { formatCurrency } from '@/src/lib/utils'
+import { formatCurrency, triggerHapticImpact, triggerHapticNotification } from '@/src/lib/utils'
 import { useSettings } from '@/src/context/SettingsContext'
 import * as Print from 'expo-print'
 import * as Sharing from 'expo-sharing'
@@ -113,13 +113,13 @@ export default function NewLoanScreen() {
 
   const totalPayable = (parseFloat(amount) || 0) + calculatedInterest
   const isInterestOnly = interestModel === 'interest_only'
-  
-  const installmentAmount = isInterestOnly && calculatedInterest > 0 
-    ? calculatedInterest 
+
+  const installmentAmount = isInterestOnly && calculatedInterest > 0
+    ? calculatedInterest
     : Math.ceil(totalPayable / (parseInt(tenure) || 1))
 
-  const derivedTenure = isInterestOnly && calculatedInterest > 0 
-    ? Math.ceil(totalPayable / calculatedInterest) 
+  const derivedTenure = isInterestOnly && calculatedInterest > 0
+    ? Math.ceil(totalPayable / calculatedInterest)
     : parseInt(tenure) || 1
 
   useEffect(() => {
@@ -172,12 +172,12 @@ export default function NewLoanScreen() {
         return
       }
     }
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    triggerHapticImpact(Haptics.ImpactFeedbackStyle.Medium)
     setStep((prev) => (prev + 1) as WizardStep)
   }
 
   const prevStep = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    triggerHapticImpact(Haptics.ImpactFeedbackStyle.Light)
     setStep((prev) => (prev - 1) as WizardStep)
   }
 
@@ -218,7 +218,7 @@ export default function NewLoanScreen() {
 
       if (dbError) throw dbError
 
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+      triggerHapticNotification(Haptics.NotificationFeedbackType.Success)
       setSuccessData({
         id: Math.random().toString(36).substring(2, 9).toUpperCase(),
         customer: selectedCustomer?.name || 'Customer',
@@ -335,7 +335,7 @@ export default function NewLoanScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        
+
         {/* Premium Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => successData ? router.dismissAll() : (step > 1 ? prevStep() : router.back())} style={[styles.backButton, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
@@ -435,19 +435,19 @@ export default function NewLoanScreen() {
 
                   <View style={styles.customerList}>
                     {filteredCustomers.map((item, index) => (
-                      <Animated.View 
-                        key={item.id} 
+                      <Animated.View
+                        key={item.id}
                         entering={FadeInDown.delay(index * 40).duration(300)}
                       >
                         <TouchableOpacity
                           style={[
-                            styles.customerItem, 
-                            { 
-                              backgroundColor: customerId === item.id ? `${colors.primary}08` : colors.surface, 
-                              borderColor: customerId === item.id ? colors.primary : colors.cardBorder 
+                            styles.customerItem,
+                            {
+                              backgroundColor: customerId === item.id ? `${colors.primary}08` : colors.surface,
+                              borderColor: customerId === item.id ? colors.primary : colors.cardBorder
                             }
                           ]}
-                          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setCustomerId(item.id) }}
+                          onPress={() => { triggerHapticImpact(Haptics.ImpactFeedbackStyle.Light); setCustomerId(item.id) }}
                           activeOpacity={0.8}
                         >
                           <View style={styles.customerRow}>
@@ -581,8 +581,8 @@ export default function NewLoanScreen() {
                         <Text style={[styles.penaltyTitle, { color: colors.text }]}>Late Payment Penalty</Text>
                         <Text style={{ color: colors.textTertiary, fontSize: 12 }}>Applied after 3-day grace</Text>
                       </View>
-                      <TouchableOpacity 
-                        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setPenaltyEnabled(!penaltyEnabled) }} 
+                      <TouchableOpacity
+                        onPress={() => { triggerHapticImpact(Haptics.ImpactFeedbackStyle.Light); setPenaltyEnabled(!penaltyEnabled) }}
                         style={[styles.switchTrack, { backgroundColor: penaltyEnabled ? colors.primary : isDark ? '#334155' : '#cbd5e1' }]}
                       >
                         <Animated.View style={[styles.switchThumb, { transform: [{ translateX: penaltyEnabled ? 20 : 0 }] }]} />
@@ -704,12 +704,12 @@ export default function NewLoanScreen() {
         {/* Footer Button */}
         {!successData && (
           <View style={[styles.footer, { borderTopColor: colors.border }]}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[
-                styles.nextButton, 
+                styles.nextButton,
                 { backgroundColor: step === 3 ? '#10b981' : colors.primary },
                 saving && { opacity: 0.6 }
-              ]} 
+              ]}
               onPress={step === 3 ? handleSave : nextStep}
               disabled={saving}
               activeOpacity={0.85}
@@ -729,7 +729,7 @@ export default function NewLoanScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  
+
   // Header
   header: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 14 },
   backButton: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },

@@ -1,6 +1,7 @@
 import React from 'react'
 import { View, Text, StyleSheet } from 'react-native'
-import Animated, { FadeIn, FadeOut, ZoomIn, ZoomOut } from 'react-native-reanimated'
+import { FadeIn, FadeOut, ZoomIn, ZoomOut } from 'react-native-reanimated'
+import Animated from 'react-native-reanimated'
 import { useTheme } from '@/src/context/ThemeContext'
 import { useSettings } from '@/src/context/SettingsContext'
 import { Settings as SettingsIcon, CheckCircle2 } from 'lucide-react-native'

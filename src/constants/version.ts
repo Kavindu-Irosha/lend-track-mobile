@@ -1,8 +1,8 @@
 import Constants from 'expo-constants'
 
-export const APP_VERSION = Constants.expoConfig?.version || '2.2.0'
-export const BUILD_NUMBER = "2026.04.11.03"
-export const LAST_OTA_UPDATE = "2026-04-11 23:38"
+export const APP_VERSION = Constants.expoConfig?.version || '2.3.0'
+export const BUILD_NUMBER = "2026.04.12.01"
+export const LAST_OTA_UPDATE = "2026-04-12 01:12"
 
 export type ChangelogItem = {
   version: string;
@@ -12,6 +12,18 @@ export type ChangelogItem = {
 }
 
 export const CHANGELOG: ChangelogItem[] = [
+  {
+    version: "2.3.0",
+    date: "2026-04-12",
+    title: "System Stability & UX Polish",
+    notes: [
+      "Haptic Refactor: Fixed haptic on/off toggle behavior across the core navigation bar and all dashboard modules.",
+      "Navigation Guard: Fixed rare double-tap glitch that caused duplicate screens to render in the settings stack.",
+      "Reference Fixes: Resolved all 'Haptics is not defined' and 'triggerHapticImpact' compilation errors across the project.",
+      "Unified Feedback: Migrated all remaining direct Haptics calls to the centralized Settings-aware utility layer.",
+      "Visual Polish: Finalized shadow and color tokens for the Light Theme Elite design system.",
+    ]
+  },
   {
     version: "2.2.0",
     date: "2026-04-11",

@@ -22,6 +22,7 @@ import { format } from 'date-fns'
 import { formatCurrency } from '@/src/lib/utils'
 import * as FileSystem from 'expo-file-system/legacy'
 import * as Sharing from 'expo-sharing'
+import { triggerHapticImpact, triggerHapticSelection, triggerHapticNotification, isPerformanceMode } from '@/src/lib/utils'
 import * as Haptics from 'expo-haptics'
 import { Dimensions, Modal, ScrollView as RNScrollView } from 'react-native'
 import Animated, { FadeInDown, FadeInRight, FadeOut, FadeIn, Layout, SlideInRight, SlideOutLeft, SlideInLeft, SlideOutRight } from 'react-native-reanimated'
@@ -197,7 +198,7 @@ export default function PaymentsScreen() {
       <Animated.View key={focusKey} style={{ flex: 1 }}>
 
         {/* Premium Header */}
-        <Animated.View entering={FadeInDown.duration(400).springify()} style={styles.header}>
+        <Animated.View entering={isPerformanceMode() ? FadeInDown : FadeInDown.duration(400).springify()} style={styles.header}>
           <View>
             <Text style={[styles.greeting, { color: colors.textSecondary }]}>Collections</Text>
             <Text style={[styles.title, { color: colors.text }]}>Payment Center</Text>
@@ -221,7 +222,7 @@ export default function PaymentsScreen() {
         </Animated.View>
 
         {/* Stats Strip */}
-        <Animated.View entering={FadeInDown.delay(50).duration(400).springify()}>
+        <Animated.View entering={isPerformanceMode() ? FadeInDown : FadeInDown.delay(50).duration(400).springify()}>
           <RNScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.statsScroll}>
             <View style={[styles.statCard, { backgroundColor: isDark ? 'rgba(16,185,129,0.15)' : '#ecfdf5' }]}>
               <View style={[styles.statIcon, { backgroundColor: isDark ? 'rgba(16,185,129,0.2)' : '#d1fae5' }]}>
@@ -255,14 +256,14 @@ export default function PaymentsScreen() {
 
         {/* View Toggle */}
         <Animated.View
-          layout={Layout.springify()}
-          entering={FadeInDown.delay(100).duration(400).springify()}
+          layout={isPerformanceMode() ? undefined : Layout.springify()}
+          entering={isPerformanceMode() ? FadeInDown : FadeInDown.delay(100).duration(400).springify()}
           style={[styles.viewToggle, { backgroundColor: isDark ? '#1e293b' : '#f1f5f9' }]}
         >
           <TouchableOpacity
             style={[styles.toggleBtn, viewMode === 'recent' && { backgroundColor: colors.primary }]}
             onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+              triggerHapticSelection()
               setViewMode('recent')
             }}
             activeOpacity={0.9}
@@ -273,7 +274,7 @@ export default function PaymentsScreen() {
           <TouchableOpacity
             style={[styles.toggleBtn, viewMode === 'history' && { backgroundColor: colors.primary }]}
             onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+              triggerHapticSelection()
               setViewMode('history')
             }}
             activeOpacity={0.9}
@@ -288,7 +289,7 @@ export default function PaymentsScreen() {
             /* ===== RECENT TAB ===== */
             <Animated.View
               key="recent-tab"
-              entering={FadeIn.duration(300)}
+              entering={isPerformanceMode() ? FadeIn.duration(200) : FadeIn.duration(300)}
               exiting={FadeOut.duration(200)}
               style={{ flex: 1 }}
             >
@@ -309,7 +310,7 @@ export default function PaymentsScreen() {
                 }
                 renderItem={({ item, index }) => (
                   <Animated.View 
-                    entering={FadeInDown.delay(Math.min(index * 50, 500)).duration(350).springify()}
+                    entering={isPerformanceMode() ? FadeInDown.delay(Math.min(index * 20, 200)) : FadeInDown.delay(Math.min(index * 50, 500)).duration(350).springify()}
                   >
                     <PaymentCard
                       amount={item.amount}
@@ -325,7 +326,7 @@ export default function PaymentsScreen() {
             /* ===== HISTORY TAB ===== */
             <Animated.View
               key="history-tab"
-              entering={FadeIn.duration(300)}
+              entering={isPerformanceMode() ? FadeIn.duration(200) : FadeIn.duration(300)}
               exiting={FadeOut.duration(200)}
               style={{ flex: 1 }}
             >
@@ -336,7 +337,7 @@ export default function PaymentsScreen() {
               >
                 {/* Chart Card */}
                 <Animated.View
-                  entering={FadeInDown.delay(100).duration(400).springify()}
+                  entering={isPerformanceMode() ? FadeInDown : FadeInDown.delay(100).duration(400).springify()}
                   style={[styles.chartCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
                 >
                   <View style={styles.chartHeader}>
@@ -391,7 +392,7 @@ export default function PaymentsScreen() {
                         }}
                         bezier
                         onDataPointClick={({ value, index }: { value: number; index: number }) => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+                          triggerHapticImpact(Haptics.ImpactFeedbackStyle.Light)
                           setSelectedMonth({
                             label: historyData[index]?.fullLabel || "Date",
                             value: value * 1000

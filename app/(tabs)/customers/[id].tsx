@@ -5,7 +5,7 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTheme } from '@/src/context/ThemeContext'
 import { supabase } from '@/src/lib/supabase'
-import { formatCurrency, formatPhoneSriLanka, maskPhone } from '@/src/lib/utils'
+import { formatCurrency, formatPhoneSriLanka, maskPhone, triggerHapticImpact, triggerHapticNotification } from '@/src/lib/utils'
 import StatsCard from '@/src/components/StatsCard'
 import LoanCard from '@/src/components/LoanCard'
 import LoadingSpinner from '@/src/components/LoadingSpinner'
@@ -245,11 +245,11 @@ export default function CustomerDetailScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy)
+              triggerHapticImpact(Haptics.ImpactFeedbackStyle.Heavy)
               const { error } = await supabase.from('loans').delete().eq('id', loanId)
               if (error) throw error
 
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+              triggerHapticNotification(Haptics.NotificationFeedbackType.Success)
               fetchData()
             } catch (err: any) {
               showAlert({ title: 'Error', message: err.message, type: 'error' })
@@ -284,7 +284,7 @@ export default function CustomerDetailScreen() {
         <Animated.View entering={FadeInDown.duration(500).springify()}>
           <View style={[styles.heroCard, { backgroundColor: colors.primary }]}>
             <View style={styles.heroGlow} />
-            
+
             {/* Top Nav Row */}
             <View style={styles.heroNav}>
               <TouchableOpacity onPress={() => router.navigate('/(tabs)/customers')} style={styles.heroBackBtn} activeOpacity={0.7}>
@@ -316,9 +316,9 @@ export default function CustomerDetailScreen() {
 
             {/* Contact Strip */}
             <View style={styles.heroContactRow}>
-              <TouchableOpacity 
-                style={styles.heroContactBtn} 
-                onPress={() => customer?.phone && Linking.openURL(`tel:${customer.phone}`)} 
+              <TouchableOpacity
+                style={styles.heroContactBtn}
+                onPress={() => customer?.phone && Linking.openURL(`tel:${customer.phone}`)}
                 activeOpacity={0.7}
               >
                 <Phone size={16} color="#fff" />
@@ -399,14 +399,14 @@ export default function CustomerDetailScreen() {
                 <Text style={[styles.progressPercent, { color: colors.primary }]}>{Math.round((totals.paid / totals.loansAmount) * 100)}%</Text>
               </View>
               <View style={[styles.progressBarBg, { backgroundColor: colors.border }]}>
-                <Animated.View 
+                <Animated.View
                   style={[
-                    styles.progressBarFill, 
-                    { 
+                    styles.progressBarFill,
+                    {
                       backgroundColor: totals.paid >= totals.loansAmount ? '#10b981' : colors.primary,
-                      width: `${Math.min((totals.paid / totals.loansAmount) * 100, 100)}%` 
+                      width: `${Math.min((totals.paid / totals.loansAmount) * 100, 100)}%`
                     }
-                  ]} 
+                  ]}
                 />
               </View>
               <View style={styles.progressLabelRow}>
@@ -423,9 +423,9 @@ export default function CustomerDetailScreen() {
             <Text style={[styles.sectionLabel, { color: colors.text }]}>Identity Verification</Text>
             <View style={styles.idVault}>
               {idImageFrontUrl && (
-                <TouchableOpacity 
-                  style={[styles.idVaultCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]} 
-                  onPress={() => setViewIdModal(idImageFrontUrl)} 
+                <TouchableOpacity
+                  style={[styles.idVaultCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
+                  onPress={() => setViewIdModal(idImageFrontUrl)}
                   activeOpacity={0.85}
                 >
                   <View style={styles.idVaultImageWrap}>
@@ -451,9 +451,9 @@ export default function CustomerDetailScreen() {
                 </TouchableOpacity>
               )}
               {idImageBackUrl && (
-                <TouchableOpacity 
-                  style={[styles.idVaultCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]} 
-                  onPress={() => setViewIdModal(idImageBackUrl)} 
+                <TouchableOpacity
+                  style={[styles.idVaultCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
+                  onPress={() => setViewIdModal(idImageBackUrl)}
                   activeOpacity={0.85}
                 >
                   <View style={styles.idVaultImageWrap}>
@@ -491,7 +491,7 @@ export default function CustomerDetailScreen() {
               return (
                 <TouchableOpacity
                   key={tab}
-                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setActiveTab(tab) }}
+                  onPress={() => { triggerHapticImpact(Haptics.ImpactFeedbackStyle.Light); setActiveTab(tab) }}
                   style={[
                     styles.tab,
                     { backgroundColor: activeTab === tab ? colors.primary : colors.surface, borderColor: activeTab === tab ? colors.primary : colors.cardBorder }

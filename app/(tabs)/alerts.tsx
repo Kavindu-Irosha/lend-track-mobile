@@ -13,7 +13,8 @@ import { useFocusEffect, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTheme } from '@/src/context/ThemeContext'
 import { supabase } from '@/src/lib/supabase'
-import { formatCurrency, formatAppDate } from '@/src/lib/utils'
+import { formatCurrency, formatAppDate, triggerHapticImpact, triggerHapticNotification, isPerformanceMode } from '@/src/lib/utils'
+import * as Haptics from 'expo-haptics'
 import LoadingSpinner from '@/src/components/LoadingSpinner'
 import EmptyState from '@/src/components/EmptyState'
 import {
@@ -27,7 +28,6 @@ import {
 } from 'lucide-react-native'
 import { format, differenceInDays } from 'date-fns'
 import { getWhatsAppReminder } from '@/src/lib/financial'
-import * as Haptics from 'expo-haptics'
 
 export default function AlertsScreen() {
   const { colors, isDark } = useTheme()
@@ -121,7 +121,7 @@ export default function AlertsScreen() {
     penalty: number = 0
   ) => {
     if (!phone) return
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    triggerHapticImpact(Haptics.ImpactFeedbackStyle.Medium)
     const cleanPhone = phone.replace(/\D/g, '')
     const message = encodeURIComponent(
       getWhatsAppReminder(name, amount, dueDate, isOverdue, penalty)
@@ -147,7 +147,7 @@ export default function AlertsScreen() {
       <Animated.View key={focusKey} style={{ flex: 1 }}>
 
         {/* Header */}
-        <Animated.View entering={FadeInDown.duration(400).springify()} style={styles.header}>
+        <Animated.View entering={isPerformanceMode() ? FadeInDown : FadeInDown.duration(400).springify()} style={styles.header}>
           <View>
             <Text style={[styles.greeting, { color: colors.textSecondary }]}>Risk Monitor</Text>
             <Text style={[styles.title, { color: colors.text }]}>Alert Center</Text>
@@ -161,7 +161,7 @@ export default function AlertsScreen() {
 
         {/* Summary Strip */}
         {alerts.length > 0 && (
-          <Animated.View entering={FadeInDown.delay(50).duration(400).springify()} style={styles.summaryRow}>
+          <Animated.View entering={isPerformanceMode() ? FadeInDown : FadeInDown.delay(50).duration(400).springify()} style={styles.summaryRow}>
             <View style={[styles.summaryCard, { backgroundColor: isDark ? 'rgba(239,68,68,0.12)' : '#fef2f2' }]}>
               <View style={[styles.summaryIcon, { backgroundColor: isDark ? 'rgba(239,68,68,0.2)' : '#fee2e2' }]}>
                 <AlertTriangle size={14} color="#ef4444" />
@@ -210,7 +210,7 @@ export default function AlertsScreen() {
           </Animated.View>
         )}
 
-        <Animated.View entering={FadeInDown.delay(100).duration(400).springify()} style={{ flex: 1 }}>
+        <Animated.View entering={isPerformanceMode() ? FadeInDown : FadeInDown.delay(100).duration(400).springify()} style={{ flex: 1 }}>
           <FlatList
             data={alerts}
             keyExtractor={(item) => item.id}
@@ -242,7 +242,7 @@ export default function AlertsScreen() {
 
               return (
                 <Animated.View
-                  entering={FadeInDown.delay(Math.min(index * 50, 400)).duration(350).springify()}
+                  entering={isPerformanceMode() ? FadeInDown.delay(Math.min(index * 20, 200)) : FadeInDown.delay(Math.min(index * 50, 400)).duration(350).springify()}
                 >
                   <View
                     style={[
@@ -263,7 +263,7 @@ export default function AlertsScreen() {
                       <View style={styles.alertInfo}>
                         <TouchableOpacity
                           onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+                            triggerHapticImpact()
                             router.push(`/(tabs)/customers/${item.customerId}`)
                           }}
                           activeOpacity={0.7}

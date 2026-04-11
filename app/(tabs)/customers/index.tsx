@@ -19,9 +19,8 @@ import LoadingSpinner from '@/src/components/LoadingSpinner'
 import EmptyState from '@/src/components/EmptyState'
 import { Plus, Search, Users, ChevronRight, Phone, CreditCard, X, UserCheck, UserX } from 'lucide-react-native'
 import type { Customer } from '@/src/types'
-import { maskPhone, maskNIC, formatPhoneSriLanka, formatCurrency } from '@/src/lib/utils'
+import { maskPhone, maskNIC, formatPhoneSriLanka, formatCurrency, triggerHapticImpact, triggerHapticNotification, isPerformanceMode } from '@/src/lib/utils'
 import { useSettings } from '@/src/context/SettingsContext'
-import * as Haptics from 'expo-haptics'
 
 export default function CustomersScreen() {
   const { colors, isDark } = useTheme()
@@ -127,14 +126,14 @@ export default function CustomersScreen() {
       <Animated.View key={focusKey} style={{ flex: 1 }}>
 
       {/* Premium Header */}
-      <Animated.View entering={FadeInDown.duration(400).springify()} style={styles.header}>
+      <Animated.View entering={isPerformanceMode() ? FadeInDown : FadeInDown.duration(400).springify()} style={styles.header}>
         <View>
           <Text style={[styles.greeting, { color: colors.textSecondary }]}>Clients</Text>
           <Text style={[styles.title, { color: colors.text }]}>Customer Directory</Text>
         </View>
         <TouchableOpacity
           style={[styles.addButton, { backgroundColor: colors.primary }]}
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/(tabs)/customers/new') }}
+          onPress={() => { triggerHapticImpact(); router.push('/(tabs)/customers/new') }}
           activeOpacity={0.8}
         >
           <Plus size={20} color="#fff" />
@@ -142,7 +141,7 @@ export default function CustomersScreen() {
       </Animated.View>
 
       {/* Stats Ribbon */}
-      <Animated.View entering={FadeInDown.delay(50).duration(400).springify()}>
+      <Animated.View entering={isPerformanceMode() ? FadeInDown : FadeInDown.delay(50).duration(400).springify()}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.statsScroll}>
           <View style={[styles.statPill, { backgroundColor: isDark ? 'rgba(59,130,246,0.15)' : '#eff6ff' }]}>
             <Users size={14} color="#3b82f6" />
@@ -168,7 +167,7 @@ export default function CustomersScreen() {
       </Animated.View>
 
       {/* Search Bar */}
-      <Animated.View entering={FadeInDown.delay(100).duration(400).springify()} style={styles.searchWrap}>
+      <Animated.View entering={isPerformanceMode() ? FadeInDown : FadeInDown.delay(100).duration(400).springify()} style={styles.searchWrap}>
         <View style={[styles.searchContainer, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
           <Search size={18} color={colors.textTertiary} />
           <TextInput
@@ -188,7 +187,7 @@ export default function CustomersScreen() {
       </Animated.View>
 
       {/* Filter Tabs */}
-      <Animated.View entering={FadeInDown.delay(150).duration(400).springify()}>
+      <Animated.View entering={isPerformanceMode() ? FadeInDown : FadeInDown.delay(150).duration(400).springify()}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterBar}>
           {([
             { id: 'all' as const, label: 'All Clients', count: stats.total, color: colors.primary },
@@ -203,7 +202,7 @@ export default function CustomersScreen() {
                   styles.filterChip,
                   { backgroundColor: isActive ? f.color : colors.surface, borderColor: isActive ? f.color : colors.cardBorder }
                 ]}
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setFilter(f.id) }}
+                onPress={() => { triggerHapticImpact(); setFilter(f.id) }}
                 activeOpacity={0.7}
               >
                 <Text style={[styles.filterChipText, { color: isActive ? '#fff' : colors.textTertiary }]}>
@@ -235,10 +234,10 @@ export default function CustomersScreen() {
           />
         }
         renderItem={({ item, index }) => (
-          <Animated.View entering={FadeInDown.delay(index * 35).duration(300).springify()}>
+          <Animated.View entering={isPerformanceMode() ? FadeInDown.delay(index * 20) : FadeInDown.delay(index * 35).duration(300).springify()}>
             <TouchableOpacity
               style={[styles.customerCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder, padding: settings.compactMode ? 12 : 16 }]}
-              onPress={() => router.push(`/(tabs)/customers/${item.id}?name=${encodeURIComponent(item.name)}`)}
+              onPress={() => { triggerHapticImpact(); router.push(`/(tabs)/customers/${item.id}?name=${encodeURIComponent(item.name)}`) }}
               activeOpacity={0.8}
             >
               {/* Avatar */}

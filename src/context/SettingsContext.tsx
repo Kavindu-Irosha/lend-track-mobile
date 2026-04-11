@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { updateFormatCache } from '@/src/lib/utils'
+import { updateOptimizationCache } from '@/src/lib/utils'
 
 export interface AppSettings {
   // Business Defaults
@@ -80,7 +80,13 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           const parsed = JSON.parse(saved)
           const merged = { ...DEFAULT_SETTINGS, ...parsed }
           setSettings(merged)
-          updateFormatCache(merged.defaultCurrency, merged.showDecimals, merged.dateFormat)
+          updateOptimizationCache(
+            merged.defaultCurrency, 
+            merged.showDecimals, 
+            merged.dateFormat, 
+            merged.hapticsEnabled, 
+            merged.performanceMode
+          )
         } catch (e) {
           console.error('Failed to parse settings:', e)
         }
@@ -105,7 +111,13 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       setSettings((prev) => {
         const next = { ...prev, [key]: value }
         AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-        updateFormatCache(next.defaultCurrency, next.showDecimals, next.dateFormat)
+        updateOptimizationCache(
+          next.defaultCurrency, 
+          next.showDecimals, 
+          next.dateFormat, 
+          next.hapticsEnabled, 
+          next.performanceMode
+        )
         return next
       })
     }
@@ -122,7 +134,13 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     triggerLayoutTransition(() => {
       setSettings(DEFAULT_SETTINGS)
       AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_SETTINGS))
-      updateFormatCache(DEFAULT_SETTINGS.defaultCurrency, DEFAULT_SETTINGS.showDecimals, DEFAULT_SETTINGS.dateFormat)
+      updateOptimizationCache(
+        DEFAULT_SETTINGS.defaultCurrency, 
+        DEFAULT_SETTINGS.showDecimals, 
+        DEFAULT_SETTINGS.dateFormat, 
+        DEFAULT_SETTINGS.hapticsEnabled, 
+        DEFAULT_SETTINGS.performanceMode
+      )
     })
   }
 

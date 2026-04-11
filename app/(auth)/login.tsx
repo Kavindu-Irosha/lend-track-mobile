@@ -16,6 +16,7 @@ import { useTheme } from '@/src/context/ThemeContext'
 import { useAlert } from '@/src/context/AlertContext'
 import { useSecurity } from '@/src/context/SecurityContext'
 import { useRouter } from 'expo-router'
+import { triggerHapticImpact } from '@/src/lib/utils'
 import * as Haptics from 'expo-haptics'
 
 export default function LoginScreen() {
@@ -208,7 +209,10 @@ export default function LoginScreen() {
 
           <TouchableOpacity
             style={[styles.secondaryButton, { borderColor: colors.border }]}
-            onPress={() => setMode(mode === 'signin' ? 'signup' : 'signin')}
+            onPress={() => {
+              triggerHapticImpact()
+              setMode(mode === 'signin' ? 'signup' : 'signin')
+            }}
             activeOpacity={0.7}
           >
             <Text style={[styles.secondaryButtonText, { color: colors.textSecondary }]}>

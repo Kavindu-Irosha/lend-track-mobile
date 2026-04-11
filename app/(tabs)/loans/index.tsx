@@ -23,10 +23,9 @@ import {
   Trash2, Filter, TrendingUp, AlertCircle, CheckCircle2, Wallet, Activity 
 } from 'lucide-react-native'
 import { generateCollectionReport } from '@/src/lib/reports'
-import * as Haptics from 'expo-haptics'
+import { formatCurrency, triggerHapticImpact, triggerHapticNotification, isPerformanceMode } from '@/src/lib/utils'
 import { format, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns'
 import DateTimePicker from '@react-native-community/datetimepicker'
-import { formatCurrency } from '@/src/lib/utils'
 import { useAlert } from '@/src/context/AlertContext'
 
 type LoanFilter = 'all' | 'active' | 'overdue' | 'completed'
@@ -206,11 +205,11 @@ export default function LoansScreen() {
           style: 'destructive',
           onPress: async () => {
              try {
-               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy)
+               triggerHapticImpact('Heavy')
                const { error } = await supabase.from('loans').delete().eq('id', loanId)
                if (error) throw error
                
-               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+               triggerHapticNotification('Success')
                fetchLoans()
              } catch (err: any) {
                showAlert({ title: 'Error', message: err.message, type: 'error' })
@@ -235,7 +234,7 @@ export default function LoansScreen() {
       <Animated.View key={focusKey} style={{ flex: 1 }}>
 
       {/* Premium Header */}
-      <Animated.View entering={FadeInDown.duration(400).springify()} style={styles.header}>
+      <Animated.View entering={isPerformanceMode() ? FadeInDown : FadeInDown.duration(400).springify()} style={styles.header}>
         <View>
           <Text style={[styles.greeting, { color: colors.textSecondary }]}>Portfolio</Text>
           <Text style={[styles.title, { color: colors.text }]}>Loan Management</Text>
@@ -259,7 +258,7 @@ export default function LoansScreen() {
       </Animated.View>
 
       {/* Portfolio Summary Strip */}
-      <Animated.View entering={FadeInDown.delay(50).duration(400).springify()}>
+      <Animated.View entering={isPerformanceMode() ? FadeInDown : FadeInDown.delay(50).duration(400).springify()}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.summaryScroll}>
           <View style={[styles.summaryCard, { backgroundColor: isDark ? 'rgba(59,130,246,0.15)' : '#eff6ff' }]}>
             <View style={[styles.summaryIcon, { backgroundColor: isDark ? 'rgba(59,130,246,0.2)' : '#dbeafe' }]}>
@@ -292,7 +291,7 @@ export default function LoansScreen() {
       </Animated.View>
 
       {/* Search Bar */}
-      <Animated.View entering={FadeInDown.delay(100).duration(400).springify()} style={styles.searchWrap}>
+      <Animated.View entering={isPerformanceMode() ? FadeInDown : FadeInDown.delay(100).duration(400).springify()} style={styles.searchWrap}>
         <View style={[styles.searchContainer, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
           <Search size={18} color={colors.textTertiary} />
           <TextInput
@@ -312,7 +311,7 @@ export default function LoansScreen() {
       </Animated.View>
 
       {/* Status Filter Tabs */}
-      <Animated.View entering={FadeInDown.delay(150).duration(400).springify()}>
+      <Animated.View entering={isPerformanceMode() ? FadeInDown : FadeInDown.delay(150).duration(400).springify()}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
         {(['all', 'active', 'overdue', 'completed'] as LoanFilter[]).map((filter) => {
           const isActive = activeFilter === filter
@@ -325,7 +324,7 @@ export default function LoansScreen() {
           return (
             <TouchableOpacity
               key={filter}
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setActiveFilter(filter) }}
+              onPress={() => { triggerHapticImpact(); setActiveFilter(filter) }}
               style={[
                 styles.filterTab,
                 { 
@@ -366,8 +365,8 @@ export default function LoansScreen() {
           />
         }
         renderItem={({ item, index }) => (
-          <Animated.View entering={FadeInDown.delay(index * 40).duration(350).springify()}>
             <LoanCard
+              index={index}
               customerName={item.customerName}
               total={item.total}
               paid={item.paid}
@@ -378,7 +377,6 @@ export default function LoansScreen() {
               onPay={item.remaining > 0 ? () => router.push(`/(tabs)/payments/new?loan_id=${item.id}`) : undefined}
               onDelete={() => handleDeleteLoan(item.id)}
             />
-          </Animated.View>
         )}
       />
 

@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTheme } from '@/src/context/ThemeContext'
 import { useSettings } from '@/src/context/SettingsContext'
 import { ArrowLeft, Briefcase, Percent, Calendar, Wallet, Clock } from 'lucide-react-native'
-import * as Haptics from 'expo-haptics'
+import { triggerHapticSelection } from '@/src/lib/utils'
 
 export default function BusinessSettingsScreen() {
   const { colors, isDark } = useTheme()
@@ -67,7 +67,7 @@ export default function BusinessSettingsScreen() {
                 <TouchableOpacity
                   key={type}
                   style={[st.chip, { backgroundColor: settings.defaultInstallmentType === type ? colors.primary : isDark ? '#1e293b' : '#f1f5f9' }]}
-                  onPress={() => { Haptics.selectionAsync(); updateSetting('defaultInstallmentType', type) }}
+                  onPress={() => { triggerHapticSelection(); updateSetting('defaultInstallmentType', type) }}
                   activeOpacity={0.8}
                 >
                   <Text style={{ color: settings.defaultInstallmentType === type ? '#fff' : colors.textSecondary, fontSize: 14, fontWeight: '700', textTransform: 'capitalize' }}>{type}</Text>
@@ -92,7 +92,7 @@ export default function BusinessSettingsScreen() {
                 <TouchableOpacity
                   key={cur}
                   style={[st.chip, { backgroundColor: settings.defaultCurrency === cur ? colors.primary : isDark ? '#1e293b' : '#f1f5f9' }]}
-                  onPress={() => { Haptics.selectionAsync(); updateSetting('defaultCurrency', cur) }}
+                  onPress={() => { triggerHapticSelection(); updateSetting('defaultCurrency', cur) }}
                   activeOpacity={0.8}
                 >
                   <Text style={{ color: settings.defaultCurrency === cur ? '#fff' : colors.textSecondary, fontSize: 14, fontWeight: '700' }}>{cur}</Text>

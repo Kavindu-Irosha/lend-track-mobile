@@ -23,11 +23,11 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTheme } from '@/src/context/ThemeContext'
 import { useAuth } from '@/src/context/AuthContext'
 import { supabase } from '@/src/lib/supabase'
+import * as Haptics from 'expo-haptics'
 import FormInput from '@/src/components/FormInput'
 import { ArrowLeft, ChevronDown, Check, Calendar as CalendarIcon, CreditCard, Wallet, User, Clock } from 'lucide-react-native'
 import { format } from 'date-fns'
-import { formatCurrency } from '@/src/lib/utils'
-import * as Haptics from 'expo-haptics'
+import { formatCurrency, triggerHapticImpact, triggerHapticNotification } from '@/src/lib/utils'
 import { useAlert } from '@/src/context/AlertContext'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import * as Print from 'expo-print'
@@ -206,9 +206,9 @@ export default function NewPaymentScreen() {
 
       if (dbError) {
         setError(dbError.message)
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+        triggerHapticNotification(Haptics.NotificationFeedbackType.Error)
       } else {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+        triggerHapticNotification(Haptics.NotificationFeedbackType.Success)
         setSuccessData({
           amount: amountNum,
           customer: selectedLoan?.customerName || 'Customer'
@@ -223,7 +223,7 @@ export default function NewPaymentScreen() {
 
   const generateReceipt = async () => {
     if (!successData) return
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    triggerHapticImpact(Haptics.ImpactFeedbackStyle.Light)
     
     const html = `
       <html>
@@ -568,7 +568,7 @@ export default function NewPaymentScreen() {
                 <TouchableOpacity
                   style={[styles.modalItem, { borderBottomColor: colors.border, backgroundColor: item.id === selectedLoanId ? `${colors.primary}08` : 'transparent' }]}
                   onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+                    triggerHapticImpact(Haptics.ImpactFeedbackStyle.Light)
                     setSelectedLoanId(item.id)
                     setShowLoanPicker(false)
                   }}

@@ -25,14 +25,15 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react-native'
-import * as Haptics from 'expo-haptics'
 import { APP_VERSION, BUILD_NUMBER, LAST_OTA_UPDATE, CHANGELOG } from '@/src/constants/version'
+import { triggerHapticImpact, triggerHapticSelection, triggerHapticNotification, isPerformanceMode } from '@/src/lib/utils'
 import * as Updates from 'expo-updates'
+import * as Haptics from 'expo-haptics'
 
 // Section row component
 function SectionLink({ icon: Icon, iconColor, label, sub, onPress, colors, isDark }: { icon: LucideIcon; iconColor: string; label: string; sub: string; onPress: () => void; colors: any; isDark: boolean }) {
   return (
-    <TouchableOpacity style={[styles.linkRow, { borderBottomColor: colors.border }]} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onPress() }} activeOpacity={0.7}>
+    <TouchableOpacity style={[styles.linkRow, { borderBottomColor: colors.border }]} onPress={() => { triggerHapticImpact(); onPress() }} activeOpacity={0.7}>
       <View style={[styles.linkIcon, { backgroundColor: iconColor + '15' }]}>
         <Icon size={18} color={iconColor} />
       </View>
@@ -60,7 +61,7 @@ export default function SettingsHub() {
   )
 
   const handleLogout = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    triggerHapticImpact(Haptics.ImpactFeedbackStyle.Medium)
     showAlert({
       title: 'Sign Out',
       message: 'Are you sure you want to sign out?',
@@ -71,7 +72,7 @@ export default function SettingsHub() {
           text: 'Sign Out',
           style: 'destructive',
           onPress: async () => {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+            triggerHapticNotification()
             await signOut()
           },
         },
@@ -84,7 +85,7 @@ export default function SettingsHub() {
       <Animated.View key={focusKey} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {/* Header */}
-          <Animated.View entering={FadeInDown.duration(400).springify()} style={styles.header}>
+          <Animated.View entering={isPerformanceMode() ? FadeInDown : FadeInDown.duration(400).springify()} style={styles.header}>
             <TouchableOpacity onPress={() => router.back()} style={[styles.backButton, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]} activeOpacity={0.7}>
               <ArrowLeft size={20} color={colors.text} />
             </TouchableOpacity>
@@ -95,7 +96,7 @@ export default function SettingsHub() {
           </Animated.View>
 
           {/* Profile Card */}
-          <Animated.View entering={FadeInDown.delay(30).duration(400).springify()}>
+          <Animated.View entering={isPerformanceMode() ? FadeInDown : FadeInDown.delay(30).duration(400).springify()}>
             <View style={[styles.profileCard, { backgroundColor: colors.primary }]}>
               <View style={styles.profileGlow} />
               <View style={styles.profileAvatar}>
@@ -112,17 +113,17 @@ export default function SettingsHub() {
           </Animated.View>
 
           {/* Settings Sections */}
-          <Animated.View entering={FadeInDown.delay(60).duration(400).springify()}>
+          <Animated.View entering={isPerformanceMode() ? FadeInDown : FadeInDown.delay(60).duration(400).springify()}>
             <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
-              <SectionLink icon={Briefcase} iconColor="#f59e0b" label="Business Defaults" sub="Interest rates, currency, installments" onPress={() => router.push('/(tabs)/settings/business')} colors={colors} isDark={isDark} />
-              <SectionLink icon={Bell} iconColor="#3b82f6" label="Notifications" sub="Alerts, reminders, daily summary" onPress={() => router.push('/(tabs)/settings/notifications')} colors={colors} isDark={isDark} />
-              <SectionLink icon={Shield} iconColor="#10b981" label="Privacy & Security" sub="Biometric lock, data masking, auto-lock" onPress={() => router.push('/(tabs)/settings/privacy')} colors={colors} isDark={isDark} />
-              <SectionLink icon={LayoutGrid} iconColor="#8b5cf6" label="Display & Appearance" sub="Theme, compact mode, formatting" onPress={() => router.push('/(tabs)/settings/display')} colors={colors} isDark={isDark} />
+              <SectionLink icon={Briefcase} iconColor="#f59e0b" label="Business Defaults" sub="Interest rates, currency, installments" onPress={() => router.navigate('/(tabs)/settings/business')} colors={colors} isDark={isDark} />
+              <SectionLink icon={Bell} iconColor="#3b82f6" label="Notifications" sub="Alerts, reminders, daily summary" onPress={() => router.navigate('/(tabs)/settings/notifications')} colors={colors} isDark={isDark} />
+              <SectionLink icon={Shield} iconColor="#10b981" label="Privacy & Security" sub="Biometric lock, data masking, auto-lock" onPress={() => router.navigate('/(tabs)/settings/privacy')} colors={colors} isDark={isDark} />
+              <SectionLink icon={LayoutGrid} iconColor="#8b5cf6" label="Display & Appearance" sub="Theme, compact mode, formatting" onPress={() => router.navigate('/(tabs)/settings/display')} colors={colors} isDark={isDark} />
             </View>
           </Animated.View>
 
           {/* About */}
-          <Animated.View entering={FadeInDown.delay(90).duration(400).springify()} style={{ marginTop: 20 }}>
+          <Animated.View entering={isPerformanceMode() ? FadeInDown : FadeInDown.delay(90).duration(400).springify()} style={{ marginTop: 20 }}>
             <View style={styles.sectionHeader}>
               <View style={[styles.sectionIcon, { backgroundColor: `${colors.primary}15` }]}>
                 <Sparkles size={16} color={colors.primary} />
@@ -130,7 +131,7 @@ export default function SettingsHub() {
               <Text style={[styles.sectionTitle, { color: colors.text }]}>About</Text>
             </View>
             <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
-              <TouchableOpacity style={styles.aboutRow} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowChangelog(true) }} activeOpacity={0.7}>
+              <TouchableOpacity style={styles.aboutRow} onPress={() => { triggerHapticImpact(); setShowChangelog(true) }} activeOpacity={0.7}>
                 <View style={styles.aboutRowLeft}>
                   <View style={[styles.versionBox, { backgroundColor: `${colors.primary}15` }]}>
                     <Text style={[styles.versionBoxText, { color: colors.primary }]}>v{APP_VERSION}</Text>
@@ -153,7 +154,7 @@ export default function SettingsHub() {
           {/* Changelog Modal */}
           <Modal visible={showChangelog} transparent animationType="none" onRequestClose={() => setShowChangelog(false)}>
             <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
-              <Animated.View entering={FadeInUp.duration(400).springify().mass(0.8).damping(20)} style={[styles.modalContent, { backgroundColor: colors.surface, borderColor: isDark ? '#334155' : '#e2e8f0' }]}>
+              <Animated.View entering={isPerformanceMode() ? FadeInUp : FadeInUp.duration(400).springify().mass(0.8).damping(20)} style={[styles.modalContent, { backgroundColor: colors.surface, borderColor: isDark ? '#334155' : '#e2e8f0' }]}>
                 <View style={[styles.modalAccent, { backgroundColor: colors.primary }]} />
                 <View style={styles.modalHeader}>
                   <View>

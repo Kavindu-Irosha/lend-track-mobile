@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import * as LocalAuthentication from 'expo-local-authentication'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import * as Haptics from 'expo-haptics'
 import * as SecureStore from 'expo-secure-store'
 import { supabase } from '@/src/lib/supabase'
+import { triggerHapticImpact, triggerHapticNotification } from '@/src/lib/utils'
 
 interface SecurityContextType {
   isBiometricEnabled: boolean
@@ -62,14 +62,14 @@ export function SecurityProvider({ children }: { children: React.ReactNode }) {
       if (result.success) {
         await AsyncStorage.setItem(STORAGE_KEY, 'true')
         setIsBiometricEnabled(true)
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+        triggerHapticNotification()
       }
     } else {
       await AsyncStorage.setItem(STORAGE_KEY, 'false')
       await SecureStore.deleteItemAsync(CRED_KEY)
       setIsBiometricEnabled(false)
       setIsAuthenticated(true)
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+      triggerHapticNotification()
     }
   }
 
@@ -112,10 +112,10 @@ export function SecurityProvider({ children }: { children: React.ReactNode }) {
           }
         }
         setIsAuthenticated(true)
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+        triggerHapticNotification()
         return true
       }
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+      triggerHapticNotification('error')
       return false
     } catch (e) {
       console.error('Auth Error:', e)

@@ -1,10 +1,10 @@
 import React from 'react'
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
 import { useTheme } from '@/src/context/ThemeContext'
-import { formatCurrency, formatAppDate } from '@/src/lib/utils'
+import { formatCurrency, formatAppDate, triggerHapticImpact, isPerformanceMode } from '@/src/lib/utils'
 import { useSettings } from '@/src/context/SettingsContext'
-import { Calendar, User, ChevronRight, Trash2 } from 'lucide-react-native'
-import * as Haptics from 'expo-haptics'
+import { Calendar, ChevronRight, Trash2 } from 'lucide-react-native'
+import Animated, { FadeInDown } from 'react-native-reanimated'
 
 interface LoanCardProps {
   customerName: string
@@ -13,6 +13,7 @@ interface LoanCardProps {
   remaining: number
   status: string
   dueDate: string
+  index?: number
   onPress?: () => void
   onPay?: () => void
   onDelete?: () => void
@@ -25,11 +26,12 @@ export default function LoanCard({
   remaining,
   status,
   dueDate,
+  index = 0,
   onPress,
   onPay,
   onDelete,
 }: LoanCardProps) {
-  const { colors, isDark } = useTheme()
+  const { colors } = useTheme()
   const { settings } = useSettings()
   const compact = settings.compactMode
 
@@ -45,107 +47,121 @@ export default function LoanCard({
       : { bg: colors.primaryBg, text: colors.primary }
 
   return (
-    <TouchableOpacity
-      style={[
-        styles.card, 
-        { 
-          backgroundColor: colors.surface, 
-          borderColor: isOverdue ? colors.error : colors.cardBorder,
-          borderWidth: 1,
-          padding: compact ? 12 : 16,
-          marginBottom: compact ? 10 : 16,
-          borderRadius: compact ? 16 : 24,
-          shadowColor: colors.primary,
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: compact ? 0 : 0.03,
-          shadowRadius: 12,
-          elevation: compact ? 0 : 2,
-        }
-      ]}
-      onPress={onPress}
-      activeOpacity={0.7}
-      disabled={!onPress}
+    <Animated.View
+      entering={isPerformanceMode() ? FadeInDown.delay(index * 30) : FadeInDown.delay(index * 50).duration(400).springify()}
     >
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <Text style={[styles.customerName, { color: colors.text }]} numberOfLines={1}>
-            {customerName}
+      <TouchableOpacity
+        style={[
+          styles.card,
+          {
+            backgroundColor: colors.surface,
+            borderColor: isOverdue ? colors.error : colors.cardBorder,
+            borderWidth: 1,
+            padding: compact ? 12 : 16,
+            marginBottom: compact ? 10 : 16,
+            borderRadius: compact ? 16 : 24,
+            shadowColor: colors.primary,
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: compact ? 0 : 0.03,
+            shadowRadius: 12,
+            elevation: compact ? 0 : 2,
+          }
+        ]}
+        onPress={() => {
+          if (onPress) {
+            triggerHapticImpact()
+            onPress()
+          }
+        }}
+        activeOpacity={0.7}
+        disabled={!onPress}
+      >
+        <View style={styles.header}>
+          <View style={styles.headerRow}>
+            <Text style={[styles.customerName, { color: colors.text }]} numberOfLines={1}>
+              {customerName}
+            </Text>
+            <View style={styles.headerRight}>
+              {onDelete && (
+                <TouchableOpacity 
+                  onPress={(e) => {
+                    e.stopPropagation()
+                    triggerHapticImpact()
+                    onDelete()
+                  }}
+                  style={[styles.deleteButton, { backgroundColor: colors.errorBg }]}
+                >
+                  <Trash2 size={16} color={colors.error} />
+                </TouchableOpacity>
+              )}
+              <View style={[styles.badge, { backgroundColor: statusColor.bg }]}>
+                <Text style={[styles.badgeText, { color: statusColor.text }]}>{status}</Text>
+              </View>
+            </View>
+          </View>
+          <Text style={[styles.totalAmount, { color: colors.textSecondary }]}>
+            Total: <Text style={{ color: colors.text, fontWeight: '800' }}>{formatCurrency(total)}</Text>
           </Text>
-          <View style={styles.headerRight}>
-            {onDelete && (
-              <TouchableOpacity 
-                onPress={(e) => {
-                  e.stopPropagation()
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-                  onDelete()
-                }}
-                style={[styles.deleteButton, { backgroundColor: colors.errorBg }]}
-              >
-                <Trash2 size={16} color={colors.error} />
-              </TouchableOpacity>
-            )}
-            <View style={[styles.badge, { backgroundColor: statusColor.bg }]}>
-              <Text style={[styles.badgeText, { color: statusColor.text }]}>{status}</Text>
+        </View>
+
+        {!compact && (
+          <View style={styles.progressSection}>
+            <View style={styles.progressHeader}>
+              <Text style={[styles.progressLabel, { color: colors.textSecondary }]}>Repayment Progress</Text>
+              <Text style={[styles.progressPercent, { color: colors.primary }]}>{Math.round(progress * 100)}%</Text>
+            </View>
+            <View style={[styles.progressBarBg, { backgroundColor: colors.border }]}>
+              <View 
+                style={[
+                  styles.progressBarFill, 
+                  { 
+                    backgroundColor: isCompleted ? colors.success : colors.primary, 
+                    width: `${progress * 100}%` 
+                  }
+                ]} 
+              />
+            </View>
+          </View>
+        )}
+
+        <View style={[styles.detailsGrid, compact && { paddingTop: 8, marginTop: 4 }]}>
+          <View style={styles.detailItem}>
+            <Text style={[styles.detailLabel, { color: colors.textTertiary }, compact && { fontSize: 9 }]}>
+              {compact ? 'Balance' : 'Current Balance'}
+            </Text>
+            <Text style={[styles.detailValue, { color: remaining > 0 ? colors.text : colors.success }, compact && { fontSize: 13 }]}>
+              {formatCurrency(remaining)}
+            </Text>
+          </View>
+          <View style={styles.detailItem}>
+            <Text style={[styles.detailLabel, { color: colors.textTertiary }, compact && { fontSize: 9 }]}>
+              {compact ? 'Next Due' : 'Next Due'}
+            </Text>
+            <View style={styles.dateRow}>
+              <Calendar size={compact ? 10 : 12} color={isOverdue ? colors.error : colors.textSecondary} />
+              <Text style={[styles.detailValue, { color: isOverdue ? colors.error : colors.textSecondary, fontSize: compact ? 11 : 13 }]}>
+                {formatAppDate(new Date(dueDate))}
+              </Text>
             </View>
           </View>
         </View>
-        <Text style={[styles.totalAmount, { color: colors.textSecondary }]}>
-          Total: <Text style={{ color: colors.text, fontWeight: '800' }}>{formatCurrency(total)}</Text>
-        </Text>
-      </View>
 
-      {!compact && (
-        <View style={styles.progressSection}>
-          <View style={styles.progressHeader}>
-            <Text style={[styles.progressLabel, { color: colors.textSecondary }]}>Repayment Progress</Text>
-            <Text style={[styles.progressPercent, { color: colors.primary }]}>{Math.round(progress * 100)}%</Text>
-          </View>
-          <View style={[styles.progressBarBg, { backgroundColor: colors.border }]}>
-            <View 
-              style={[
-                styles.progressBarFill, 
-                { 
-                  backgroundColor: isCompleted ? colors.success : colors.primary, 
-                  width: `${progress * 100}%` 
-                }
-              ]} 
-            />
-          </View>
-        </View>
-      )}
-
-      <View style={styles.detailsGrid}>
-        <View style={styles.detailItem}>
-          <Text style={[styles.detailLabel, { color: colors.textTertiary }]}>Current Balance</Text>
-          <Text style={[styles.detailValue, { color: remaining > 0 ? colors.text : colors.success }]}>
-            {formatCurrency(remaining)}
-          </Text>
-        </View>
-        <View style={styles.detailItem}>
-          <Text style={[styles.detailLabel, { color: colors.textTertiary }]}>Next Due</Text>
-          <View style={styles.dateRow}>
-            <Calendar size={12} color={isOverdue ? colors.error : colors.textSecondary} />
-            <Text style={[styles.detailValue, { color: isOverdue ? colors.error : colors.textSecondary, fontSize: 13 }]}>
-              {formatAppDate(new Date(dueDate))}
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {!isCompleted && onPay && (
-        <TouchableOpacity
-          style={[styles.payButton, { backgroundColor: colors.primary }]}
-          onPress={(e) => {
-            e.stopPropagation?.()
-            onPay?.()
-          }}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.payButtonText}>Record Payment</Text>
-          <ChevronRight size={16} color="#fff" />
-        </TouchableOpacity>
-      )}
-    </TouchableOpacity>
+        {!isCompleted && onPay && (
+          <TouchableOpacity
+            style={[styles.payButton, { backgroundColor: colors.primary }]}
+            onPress={(e) => {
+              e.stopPropagation()
+              triggerHapticImpact()
+              onPay()
+            }}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.payButtonText}>Record Payment</Text>
+            <ChevronRight size={16} color="#fff" />
+          </TouchableOpacity>
+        )}
+      </TouchableOpacity>
+    </Animated.View>
   )
 }
 
@@ -257,8 +273,9 @@ const styles = StyleSheet.create({
   deleteButton: {
     width: 32,
     height: 32,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 4,
   },
 })
