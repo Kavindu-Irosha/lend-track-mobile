@@ -28,7 +28,8 @@
         "barStyle": "light-content"
       },
       "backgroundColor": "#09090b",
-      "package": "com.lendtrack.mobile"
+      "package": "com.lendtrack.mobile",
+      "versionCode": 230
     },
     "web": {
       "favicon": "./assets/favicon.png",
