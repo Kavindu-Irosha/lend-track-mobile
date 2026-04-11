@@ -166,27 +166,45 @@ export default function AlertsScreen() {
               <View style={[styles.summaryIcon, { backgroundColor: isDark ? 'rgba(239,68,68,0.2)' : '#fee2e2' }]}>
                 <AlertTriangle size={14} color="#ef4444" />
               </View>
-              <View>
-                <Text style={[styles.summaryValue, { color: isDark ? '#fca5a5' : '#991b1b' }]}>{stats.overdueCount}</Text>
-                <Text style={[styles.summaryLabel, { color: '#ef4444' }]}>Overdue</Text>
+              <View style={{ flex: 1 }}>
+                <Text 
+                  style={[styles.summaryValue, { color: isDark ? '#fca5a5' : '#991b1b' }]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
+                  {stats.overdueCount}
+                </Text>
+                <Text style={[styles.summaryLabel, { color: '#ef4444' }]} numberOfLines={1}>Overdue</Text>
               </View>
             </View>
             <View style={[styles.summaryCard, { backgroundColor: isDark ? 'rgba(245,158,11,0.12)' : '#fffbeb' }]}>
               <View style={[styles.summaryIcon, { backgroundColor: isDark ? 'rgba(245,158,11,0.2)' : '#fef3c7' }]}>
                 <Clock size={14} color="#f59e0b" />
               </View>
-              <View>
-                <Text style={[styles.summaryValue, { color: isDark ? '#fcd34d' : '#92400e' }]}>{stats.dueToday}</Text>
-                <Text style={[styles.summaryLabel, { color: '#f59e0b' }]}>Due Today</Text>
+              <View style={{ flex: 1 }}>
+                <Text 
+                  style={[styles.summaryValue, { color: isDark ? '#fcd34d' : '#92400e' }]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
+                  {stats.dueToday}
+                </Text>
+                <Text style={[styles.summaryLabel, { color: '#f59e0b' }]} numberOfLines={1}>Due Today</Text>
               </View>
             </View>
             <View style={[styles.summaryCard, { backgroundColor: isDark ? 'rgba(139,92,246,0.12)' : '#f5f3ff' }]}>
               <View style={[styles.summaryIcon, { backgroundColor: isDark ? 'rgba(139,92,246,0.2)' : '#ede9fe' }]}>
                 <ShieldAlert size={14} color="#8b5cf6" />
               </View>
-              <View>
-                <Text style={[styles.summaryValue, { color: isDark ? '#c4b5fd' : '#4c1d95', fontSize: 13 }]}>{formatCurrency(stats.totalExposure)}</Text>
-                <Text style={[styles.summaryLabel, { color: '#8b5cf6' }]}>At Risk</Text>
+              <View style={{ flex: 1 }}>
+                <Text 
+                  style={[styles.summaryValue, { color: isDark ? '#c4b5fd' : '#4c1d95', fontSize: 13 }]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
+                  {formatCurrency(stats.totalExposure)}
+                </Text>
+                <Text style={[styles.summaryLabel, { color: '#8b5cf6' }]} numberOfLines={1}>At Risk</Text>
               </View>
             </View>
           </Animated.View>
