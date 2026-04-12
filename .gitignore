@@ -36,8 +36,6 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
-# generated native folders
-/ios
 # /android (Removed from ignore to support Bare Workflow sync)
 
 # android local development/sensitive files
@@ -47,6 +45,7 @@ android/build
 android/app/build
 android/**/*.jks
 android/**/*.keystore
-android/**/*.png
+# android/**/*.png (Commented out to allow splash PNGs)
 !android/app/src/main/res/drawable*/splashscreen_logo.png
+
 
