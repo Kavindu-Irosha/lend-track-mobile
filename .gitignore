@@ -38,4 +38,15 @@ yarn-error.*
 
 # generated native folders
 /ios
-/android
+# /android (Removed from ignore to support Bare Workflow sync)
+
+# android local development/sensitive files
+android/local.properties
+android/.gradle
+android/build
+android/app/build
+android/**/*.jks
+android/**/*.keystore
+android/**/*.png
+!android/app/src/main/res/drawable*/splashscreen_logo.png
+
