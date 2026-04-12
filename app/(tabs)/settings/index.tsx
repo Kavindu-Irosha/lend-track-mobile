@@ -27,7 +27,6 @@ import {
 } from 'lucide-react-native'
 import { APP_VERSION, BUILD_NUMBER, LAST_OTA_UPDATE, CHANGELOG } from '@/src/constants/version'
 import { triggerHapticImpact, triggerHapticSelection, triggerHapticNotification, isPerformanceMode, ImpactStyle, NotificationType } from '@/src/lib/utils'
-import * as Updates from 'expo-updates'
 
 // Section row component
 function SectionLink({ icon: Icon, iconColor, label, sub, onPress, colors, isDark }: { icon: LucideIcon; iconColor: string; label: string; sub: string; onPress: () => void; colors: any; isDark: boolean }) {
@@ -192,35 +191,7 @@ export default function SettingsHub() {
             </View>
           </Modal>
 
-          {/* Deployment Status (For OTA Verification) */}
-          <Animated.View entering={FadeInDown.delay(100).duration(400).springify()} style={{ marginTop: 20 }}>
-            <View style={styles.sectionHeader}>
-              <View style={[styles.sectionIcon, { backgroundColor: `${colors.primary}15` }]}>
-                <Shield size={16} color={colors.primary} />
-              </View>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Deployment Status</Text>
-            </View>
-            <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.cardBorder, padding: 16 }]}>
-              <View style={styles.deploymentRow}>
-                <Text style={[styles.deploymentLabel, { color: colors.textTertiary }]}>Active Channel</Text>
-                <Text style={[styles.deploymentValue, { color: colors.text }]}>{Updates.channel || 'Development'}</Text>
-              </View>
-              <View style={styles.deploymentDivider} />
-              <View style={styles.deploymentRow}>
-                <Text style={[styles.deploymentLabel, { color: colors.textTertiary }]}>Last OTA Sync</Text>
-                <Text style={[styles.deploymentValue, { color: colors.text }]}>{LAST_OTA_UPDATE}</Text>
-              </View>
-              <View style={styles.deploymentDivider} />
-              <View style={styles.deploymentRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.deploymentLabel, { color: colors.textTertiary }]}>Update ID</Text>
-                  <Text style={[styles.deploymentValue, { color: colors.text, fontSize: 10, marginTop: 4 }]}>
-                    {Updates.updateId || 'Native Bundle (Pre-OTA)'}
-                  </Text>
-                </View>
-              </View>
-            </View>
-          </Animated.View>
+
 
           {/* Sign Out */}
           <Animated.View entering={FadeInDown.delay(140).duration(400).springify()} style={{ marginTop: 20 }}>
