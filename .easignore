@@ -1,0 +1,44 @@
+# EAS ignores these files during remote builds. 
+# It mirrors .gitignore EXCEPT for .env, which must be uploaded to compile your EXPO_PUBLIC variables
+
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# typescript
+*.tsbuildinfo
+
+# android local development/sensitive files
+android/local.properties
+android/.gradle
+android/build
+android/app/build
+android/**/*.jks
+android/**/*.keystore
+!android/app/src/main/res/drawable*/splashscreen_logo.png

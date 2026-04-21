@@ -25,7 +25,10 @@
       },
       "backgroundColor": "#09090b",
       "package": "com.lendtrack.mobile",
-      "versionCode": 230
+      "versionCode": 230,
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -50,7 +53,6 @@
     ],
     "runtimeVersion": "2.3.0",
     "updates": {
-      "url": "https://u.expo.dev/7e02397e-ed0e-47a2-8d50-7af3aab62c8e",
       "enabled": true,
       "checkAutomatically": "ON_LOAD",
       "fallbackToCacheTimeout": 0
@@ -58,8 +60,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "7e02397e-ed0e-47a2-8d50-7af3aab62c8e"
+        "projectId": "693ebb8b-8deb-471f-b870-40b23d21bebe"
       }
-    }
+    },
+    "owner": "ceylondev"
   }
 }
