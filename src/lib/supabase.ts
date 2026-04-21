@@ -9,8 +9,8 @@ if (typeof global.atob === 'undefined') {
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || ''
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || ''
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://cocpqakejhbkmzjfmlym.supabase.co'
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNvY3BxYWtlamhia216amZtbHltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyOTA1MzksImV4cCI6MjA4Nzg2NjUzOX0.0ElN1qCsYyGX2v1el6jsRYwnj8rHTqOfT5cjnTSV1GA'
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {

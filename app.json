@@ -44,11 +44,7 @@
         }
       ],
       [
-        "expo-notifications",
-        {
-          "icon": "./assets/adaptive-icon.png",
-          "color": "#6366f1"
-        }
+        "expo-notifications"
       ]
     ],
     "runtimeVersion": "2.3.0",
