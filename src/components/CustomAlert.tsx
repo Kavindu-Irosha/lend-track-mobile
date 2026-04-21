@@ -22,6 +22,7 @@ import Animated, {
 } from 'react-native-reanimated'
 import { useTheme } from '@/src/context/ThemeContext'
 import { useAlert } from '@/src/context/AlertContext'
+import { NotificationFeedbackType } from 'expo-haptics'
 import {
   Info,
   CheckCircle2,
@@ -38,7 +39,7 @@ const ALERT_CONFIG: Record<string, {
   Icon: LucideIcon; 
   color: string; 
   bgGradient: string;
-  haptic: string 
+  haptic: NotificationFeedbackType 
 }> = {
   info: { Icon: Info, color: '#3b82f6', bgGradient: 'rgba(59,130,246,0.12)', haptic: NotificationType.Success },
   success: { Icon: CheckCircle2, color: '#10b981', bgGradient: 'rgba(16,185,129,0.12)', haptic: NotificationType.Success },

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { Session, User } from '@supabase/supabase-js'
 import { supabase } from '@/src/lib/supabase'
+import { registerForPushNotificationsAsync } from '@/src/lib/notifications'
 
 interface AuthContextType {
   user: User | null
@@ -50,6 +51,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     initSession()
 
+    // Setup function to handle token registration
+    const handlePushToken = async (userId: string) => {
+      try {
+        const token = await registerForPushNotificationsAsync()
+        if (token) {
+          // Push to Supabase matching our new user_devices schema
+          await supabase.from('user_devices').upsert({
+            user_id: userId,
+            expo_push_token: token,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'user_id, expo_push_token' })
+        }
+      } catch (e) {
+        console.warn('Silent fail for push token upload:', e)
+      }
+    }
+
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
@@ -60,6 +78,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (event === 'SIGNED_OUT') {
           setSession(null)
           setUser(null)
+        } else if (event === 'SIGNED_IN' && session?.user) {
+          // Attempt push registration on new sign in
+          handlePushToken(session.user.id)
         }
       }
     )

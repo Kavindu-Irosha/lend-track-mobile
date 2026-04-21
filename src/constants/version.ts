@@ -13,6 +13,20 @@ export type ChangelogItem = {
 
 export const CHANGELOG: ChangelogItem[] = [
   {
+    version: "2.4.0",
+    date: "2026-04-21",
+    title: "Automated Push & SMS Engine",
+    notes: [
+      "Enterprise SMS Automation: Integrated Text.lk backend bridge via Supabase Edge Functions.",
+      "Event-Driven Triggers: Instant SQL Webhooks for Loan Issued and Payment Received notifications.",
+      "Scheduled Campaigns: Integrated pg_cron scheduling for 8 AM daily overdue and due-tomorrow reminders.",
+      "Push Navigation Prep: Installed expo-notifications and expo-device with custom SDK 53 Go bypass.",
+      "Secure Tokens: Upgraded architecture to store Expo Push Tokens in isolated Supabase user_devices table.",
+      "Security Hardening: Abstracted hardcoded API keys into secure local .env configurations.",
+      "TypeScript Hardening: Resolved NotificationFeedbackType and base-64 compiler conflicts.",
+    ]
+  },
+  {
     version: "2.3.0",
     date: "2026-04-12",
     title: "System Stability & UX Polish",

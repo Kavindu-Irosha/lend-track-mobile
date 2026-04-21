@@ -48,4 +48,6 @@ android/**/*.keystore
 # android/**/*.png (Commented out to allow splash PNGs)
 !android/app/src/main/res/drawable*/splashscreen_logo.png
 
-
+# Environment Configuration
+.env
+.env.*
