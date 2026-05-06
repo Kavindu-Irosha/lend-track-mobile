@@ -1,21 +1,21 @@
-# 💳 LendTrack - Premium Loan Management System
+# 💳 LendTrack - Premium Loan Management System (v2.4.0)
 
-LendTrack is a cutting-edge mobile application designed for micro-lenders and financial managers. Built with **React Native** and **Expo SDK 54**, it offers a professional, high-performance experience to track loans, manage customers, and monitor financial health with precision.
+LendTrack is an enterprise-grade mobile application designed for micro-lenders and financial managers. Built with **React Native** and **Expo SDK 54**, it offers a professional, high-performance experience to track loans, manage customers, and monitor financial health with precision.
 
 ![LendTrack Banner](https://images.unsplash.com/photo-1554224155-1696413575b3?auto=format&fit=crop&q=80&w=1200&h=400)
 
 ---
 
-## ✨ Features
+## ✨ Premium Features (v2.4.0)
 
-- **📊 Advanced Analytics Dashboard**: Real-time overview of total lending, collections, and overdue payments with dynamic charts.
-- **👥 Customer CRM**: Comprehensive management of borrower profiles, including contact details and history.
-- **💰 Smart Loan Tracking**: Create and manage multiple loan types with automated interest calculations and status tracking.
-- **💸 Seamless Payment Management**: Log payments and track transaction history with instant balance updates.
-- **🔔 Intelligent Alerts**: Stay notified about upcoming deadlines, overdue payments, and system updates.
-- **📑 Financial Reports**: Generate detailed performance reports using optimized financial utilities.
-- **🔒 Secure Authentication**: Powered by **Supabase** for enterprise-grade security and real-time database synchronization.
-- **🎨 Premium UI/UX**: A sleek, dark-themed interface built with **Lucide Icons** and **Reanimated** for smooth interactions.
+- **📊 Advanced Analytics Dashboard**: Real-time overview of total lending, collections, and overdue payments with a redesigned "Premium Hero" card and dual-stream Cash Flow charts.
+- **🔍 Global Search Engine**: Instantly find customers or specific loans using the new unified search architecture.
+- **🧮 Professional Loan Calculator**: Built-in tool for generating quick quotes using both **Flat Interest** and **Reducing Balance (EMI)** models.
+- **📂 Advanced Data Portability**: Export your entire loan portfolio and payment history directly to **CSV/Excel** for external auditing.
+- **👥 Customer CRM**: Comprehensive management of borrower profiles, including identity verification and history.
+- **💰 Smart Loan Tracking**: Support for daily, weekly, and monthly installments with automated interest and penalty calculations.
+- **🔒 Enterprise Security**: Biometric (Fingerprint/FaceID) App Lock, Data Masking (PII protection), and localized brute-force protection.
+- **🎨 Premium UI/UX**: A sleek interface with glassmorphic accents, staggered entrance animations, and a high-density **Compact Mode** for power users.
 
 ---
 
@@ -23,12 +23,11 @@ LendTrack is a cutting-edge mobile application designed for micro-lenders and fi
 
 - **Framework**: [Expo SDK 54](https://expo.dev/) (React Native)
 - **Navigation**: Expo Router (File-based routing)
-- **Backend**: [Supabase](https://supabase.com/) (Database & Auth)
-- **Styling**: Vanilla React Native Styles with Premium Design Tokens
+- **Backend**: [Supabase](https://supabase.com/) (PostgreSQL & Auth)
+- **State**: DashboardContext with 1-min intelligent data retention
 - **Icons**: [Lucide React Native](https://lucide.dev/)
 - **Charts**: [React Native Chart Kit](https://github.com/indiespirit/react-native-chart-kit)
 - **Animations**: [React Native Reanimated](https://docs.swmansion.com/react-native-reanimated/)
-- **Utils**: [date-fns](https://date-fns.org/) for precise date manipulation
 
 ---
 
@@ -36,9 +35,9 @@ LendTrack is a cutting-edge mobile application designed for micro-lenders and fi
 
 ### Prerequisites
 
-- Node.js (v18 or higher)
-- npm or yarn
-- Expo Go app on your mobile device (to preview)
+- **Node.js** (v18 or higher)
+- **npm** or **yarn**
+- **Supabase Account** (Free tier supported)
 
 ### Installation
 
@@ -50,70 +49,56 @@ LendTrack is a cutting-edge mobile application designed for micro-lenders and fi
 
 2. **Install dependencies:**
    ```bash
-   npm install
+   npm install --legacy-peer-deps
    ```
 
 3. **Database Setup:**
-   - Log in to your [Supabase Dashboard](https://supabase.com/dashboard).
-   - Create a new project.
-   - Run the SQL queries provided in `migration.sql` within the SQL Editor to set up the necessary table schema extensions.
+   - Create a new project in your [Supabase Dashboard](https://supabase.com/dashboard).
+   - Go to the **SQL Editor**.
+   - Copy and run the contents of `schema.sql` (found in the project root) to initialize tables, RLS policies, and storage buckets.
 
 4. **Configure Environment Variables:**
-   Create a `.env` file in the root and add your Supabase credentials (or configure them in `src/lib/supabase.ts`):
+   Create a `.env` file in the root:
    ```env
    EXPO_PUBLIC_SUPABASE_URL=your-supabase-url
    EXPO_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
    ```
 
-5. **Start the development server:**
+5. **Launch the app:**
    ```bash
-   npm run start
+   npx expo start
    ```
-
-6. **Run on a device/emulator:**
-   - Press `a` for Android Emulator
-   - Press `i` for iOS Simulator
-   - Scan the QR code with Expo Go for physical devices
 
 ---
 
 ## 📁 Project Structure
 
 ```text
-├── app/                  # Expo Router directory (Navigation & Screens)
-│   ├── (auth)/           # Authentication screens (Login, Signup)
-│   ├── (tabs)/           # Main application tab navigation
-│   │   ├── loans/        # Loan management module
-│   │   ├── payments/     # Payment tracking module
-│   │   └── customers/    # Customer management module
-│   └── _layout.tsx       # Root layout provider
+├── app/                  # Expo Router (Navigation & Screens)
+│   ├── (auth)/           # Authentication (Login, Signup)
+│   ├── (tabs)/           # Main App Hub (Dashboard, Loans, Customers)
+│   ├── calculator.tsx    # Standalone Loan Calculator
+│   └── search.tsx        # Global Search Engine
 ├── src/
-│   ├── components/       # Reusable UI components
-│   ├── constants/        # Design system & theme constants
-│   ├── context/          # State management (Auth, Alert, etc.)
-│   ├── lib/              # Business logic, helpers & API services
-│   └── types/            # TypeScript interface & type definitions
-├── assets/               # Branding, images, and fonts
-└── app.json              # Expo application configuration
+│   ├── components/       # Reusable Premium UI Components
+│   ├── context/          # State Management (Auth, Theme, Security)
+│   ├── lib/              # Financial Engine & API Services
+│   └── types/            # Strict TypeScript Definitions
+├── schema.sql            # One-click Database Blueprint
+└── GUMROAD_SETUP.md      # Commercial Deployment Guide
 ```
 
 ---
 
-## 📱 Screenshots
+## 🎯 Release Roadmap
 
-| Dashboard | Loan List | Add Payment |
-| :---: | :---: | :---: |
-| ![Dashboard](https://via.placeholder.com/200x400/09090b/ffffff?text=Dashboard) | ![Loan List](https://via.placeholder.com/200x400/09090b/ffffff?text=Loan+Tracking) | ![Add Payment](https://via.placeholder.com/200x400/09090b/ffffff?text=Payment+Entry) |
-
----
-
-## 🎯 Roadmap
-
-- [ ] Export reports to PDF/CSV
-- [ ] Multi-currency support
-- [ ] Offline-first sync capability
-- [ ] Biometric authentication (FaceID/Fingerprint)
+- [x] Export reports to CSV
+- [x] Standalone Loan Calculator
+- [x] Global Search Engine
+- [x] Biometric Authentication (App Lock)
+- [x] High-Density Compact Mode
 - [ ] Push Notifications for overdue payments
+- [ ] Multi-currency localization
 
 ---
 
