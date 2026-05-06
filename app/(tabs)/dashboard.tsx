@@ -652,7 +652,7 @@ const styles = StyleSheet.create({
   pullHint: { fontSize: 11, fontWeight: '600', letterSpacing: 0.2 },
 
   // Hero Card Styles
-  heroCard: { marginVertical: 16, marginHorizontal: -16, padding: 24, borderRadius: 0, overflow: 'hidden', elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 12 },
+  heroCard: { marginVertical: 16, marginHorizontal: 12, padding: 24, borderRadius: 32, overflow: 'hidden', elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 12 },
   heroGlow: { position: 'absolute', top: -100, right: -100, width: 250, height: 250, borderRadius: 125, backgroundColor: 'rgba(255,255,255,0.15)' },
   heroLight: { position: 'absolute', bottom: -50, left: -50, width: 150, height: 150, borderRadius: 75, backgroundColor: 'rgba(255,255,255,0.08)' },
   heroLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
