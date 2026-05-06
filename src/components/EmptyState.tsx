@@ -9,6 +9,7 @@ interface EmptyStateProps {
   description: string
   actionLabel?: string
   onAction?: () => void
+  compact?: boolean
 }
 
 export default function EmptyState({
@@ -17,25 +18,34 @@ export default function EmptyState({
   description,
   actionLabel,
   onAction,
+  compact = false,
 }: EmptyStateProps) {
   const { colors } = useTheme()
 
   return (
-    <View style={[styles.container, { borderColor: colors.border }]}>
-      <View style={[styles.iconContainer, { backgroundColor: colors.primaryBg }]}>
-        <Icon size={32} color={colors.primary} />
+    <View style={[
+      styles.container, 
+      { borderColor: colors.border },
+      compact && { paddingVertical: 24, borderRadius: 12 }
+    ]}>
+      <View style={[
+        styles.iconContainer, 
+        { backgroundColor: colors.primaryBg },
+        compact && { width: 48, height: 48, marginBottom: 8 }
+      ]}>
+        <Icon size={compact ? 24 : 32} color={colors.primary} />
       </View>
-      <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
-      <Text style={[styles.description, { color: colors.textSecondary }]}>
+      <Text style={[styles.title, { color: colors.text }, compact && { fontSize: 13 }]}>{title}</Text>
+      <Text style={[styles.description, { color: colors.textSecondary }, compact && { fontSize: 12, maxWidth: 200 }]}>
         {description}
       </Text>
       {actionLabel && onAction && (
         <TouchableOpacity
-          style={[styles.button, { backgroundColor: colors.primary }]}
+          style={[styles.button, { backgroundColor: colors.primary }, compact && { marginTop: 12, paddingVertical: 6, paddingHorizontal: 16 }]}
           onPress={onAction}
           activeOpacity={0.8}
         >
-          <Text style={styles.buttonText}>{actionLabel}</Text>
+          <Text style={[styles.buttonText, compact && { fontSize: 12 }]}>{actionLabel}</Text>
         </TouchableOpacity>
       )}
     </View>

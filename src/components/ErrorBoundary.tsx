@@ -1,6 +1,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react'
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform } from 'react-native'
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react-native'
+import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { triggerHapticImpact, ImpactStyle } from '@/src/lib/utils'
 

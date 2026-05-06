@@ -34,6 +34,11 @@ export type Loan = {
   payments?: { amount: number }[]
 }
 
+export type LoanWithRelations = Loan & {
+  customers: { id: string, name: string }
+  payments: { amount: number }[]
+}
+
 export type Payment = {
   id: string
   loan_id: string
@@ -44,6 +49,16 @@ export type Payment = {
   reference_id?: string
   created_at: string
   // Relations
-  loans?: { id: string, customers?: { id: string, name: string } }
+  loans?: { 
+    id: string, 
+    customers?: { id: string, name: string } 
+  }
+}
+
+export type PaymentWithRelations = Payment & {
+  loans: {
+    id: string
+    customers: { id: string, name: string }
+  }
 }
 

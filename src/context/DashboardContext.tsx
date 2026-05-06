@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react'
 import { supabase } from '@/src/lib/supabase'
 import { format } from 'date-fns'
-import { Loan, Payment } from '../types'
+import { Loan, Payment, LoanWithRelations, PaymentWithRelations } from '../types'
 
 interface DashboardStats {
   totalGiven: number
@@ -18,7 +18,7 @@ interface DashboardStats {
 interface DashboardContextType {
   stats: DashboardStats
   recentPayments: Payment[]
-  topPending: (Loan & { remaining: number, customerName: string, customerId: string })[]
+  topPending: (LoanWithRelations & { remaining: number, customerName: string, customerId: string })[]
   chartData: { labels: string[]; inData: number[]; outData: number[] }
   isChartEmpty: boolean
   loading: boolean
@@ -47,8 +47,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     completedLoanCount: 0
   })
   const [recentPayments, setRecentPayments] = useState<Payment[]>([])
-  const [topPending, setTopPending] = useState<(Loan & { remaining: number, customerName: string, customerId: string })[]>([])
-  const [chartData, setChartData] = useState({ labels: [], inData: [], outData: [] })
+  const [topPending, setTopPending] = useState<(LoanWithRelations & { remaining: number, customerName: string, customerId: string })[]>([])
+  const [chartData, setChartData] = useState<{ labels: string[]; inData: number[]; outData: number[] }>({ labels: [], inData: [], outData: [] })
   const [isChartEmpty, setIsChartEmpty] = useState(true)
 
   const fetchDashboardData = useCallback(async (force = false) => {
@@ -69,28 +69,28 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         supabase.from('customers').select('*', { count: 'exact', head: true })
       ])
 
-      const loans = (loansRes.data as unknown as Loan[]) || []
-      const payments = (paymentsRes.data as unknown as Payment[]) || []
+      const loans = (loansRes.data as unknown as LoanWithRelations[]) || []
+      const payments = (paymentsRes.data as unknown as PaymentWithRelations[]) || []
       const customerCount = customersRes.count || 0
 
       // Calculate stats
       let totalGiven = 0, totalCollected = 0, totalPending = 0, principalDisbursed = 0, expectedProfit = 0, totalCredits = 0
       let activeCount = 0, completedCount = 0
-      const pendingList: (Loan & { remaining: number, customerName: string, customerId: string })[] = []
+      const pendingList: (LoanWithRelations & { remaining: number, customerName: string, customerId: string })[] = []
 
       loans.forEach((loan) => {
         principalDisbursed += Number(loan.amount)
         expectedProfit += Number(loan.interest)
         const loanTotal = Number(loan.amount) + Number(loan.interest)
         totalGiven += loanTotal
-        const paid = loan.payments?.reduce((s: number, p: any) => s + Number(p.amount), 0) || 0
+        const paid = loan.payments?.reduce((s: number, p) => s + Number(p.amount), 0) || 0
         totalCollected += paid
         const remaining = loanTotal - paid
 
         if (remaining > 0) {
           totalPending += remaining
           activeCount++
-          pendingList.push({ ...loan, remaining, customerName: loan.customers?.name || 'Unknown', customerId: loan.customers?.id })
+          pendingList.push({ ...loan, remaining, customerName: loan.customers?.name || 'Unknown', customerId: loan.customers?.id || loan.customer_id })
         } else {
           completedCount++
           if (remaining < 0) totalCredits += Math.abs(remaining)
@@ -127,40 +127,36 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       supabase.from('loans').select('amount, start_date').gte('start_date', startDateStr)
     ])
 
-    const inMap: Record<string, number> = {}
-    const outMap: Record<string, number> = {}
+    const labels: string[] = []
+    const inValues: number[] = []
+    const outValues: number[] = []
 
     for (let i = rangeDays - 1; i >= 0; i--) {
       const d = new Date()
       d.setDate(d.getDate() - i)
       const label = format(d, rangeDays <= 30 ? 'MMM dd' : 'MM/dd')
-      inMap[label] = 0
-      outMap[label] = 0
+      labels.push(label)
+      
+      let inSum = 0
+      if (pRes.data) {
+        inSum = pRes.data
+          .filter(p => format(new Date(p.payment_date), rangeDays <= 30 ? 'MMM dd' : 'MM/dd') === label)
+          .reduce((s, p) => s + Number(p.amount), 0)
+      }
+      inValues.push(inSum)
+
+      let outSum = 0
+      if (lRes.data) {
+        outSum = lRes.data
+          .filter(l => format(new Date(l.start_date), rangeDays <= 30 ? 'MMM dd' : 'MM/dd') === label)
+          .reduce((s, loan) => s + Number(loan.amount), 0)
+      }
+      outValues.push(outSum)
     }
 
-    if (pRes.data) {
-      pRes.data.forEach((p) => {
-        const d = new Date(p.payment_date)
-        const label = format(d, rangeDays <= 30 ? 'MMM dd' : 'MM/dd')
-        if (inMap[label] !== undefined) inMap[label] += Number(p.amount)
-      })
-    }
-
-    if (lRes.data) {
-      lRes.data.forEach((l) => {
-        const d = new Date(l.start_date)
-        const label = format(d, rangeDays <= 30 ? 'MMM dd' : 'MM/dd')
-        if (outMap[label] !== undefined) outMap[label] += Number(l.amount)
-      })
-    }
-
-    const allLabels = Object.keys(inMap)
-    const inValues = Object.values(inMap)
-    const outValues = Object.values(outMap)
     const hasData = inValues.some(v => v > 0) || outValues.some(v => v > 0)
-    
     const labelStep = rangeDays <= 7 ? 1 : rangeDays <= 30 ? 5 : rangeDays <= 90 ? 15 : 30
-    const displayLabels = allLabels.map((l, i) => (i % labelStep === 0 ? l : ''))
+    const displayLabels = labels.map((l, i) => (i % labelStep === 0 ? l : ''))
 
     setChartData({ labels: displayLabels, inData: inValues, outData: outValues })
     setIsChartEmpty(!hasData)
