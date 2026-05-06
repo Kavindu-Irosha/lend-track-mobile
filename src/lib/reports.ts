@@ -1,7 +1,9 @@
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
 import { format } from 'date-fns';
 import { formatCurrency } from './utils';
+import { Customer, LoanWithRelations, PaymentWithRelations } from '../types';
 
 export interface ReportData {
   title: string;
@@ -27,10 +29,10 @@ export const generatePDF = async (html: string, fileName: string) => {
   }
 };
 
-export const generateCustomerStatement = async (customer: any, loans: any[]) => {
+export const generateCustomerStatement = async (customer: Customer, loans: LoanWithRelations[]) => {
   const tableRows = loans.map(loan => {
     const total = Number(loan.amount) + Number(loan.interest);
-    const paid = loan.payments?.reduce((sum: number, p: any) => sum + Number(p.amount), 0) || 0;
+    const paid = loan.payments?.reduce((sum: number, p) => sum + Number(p.amount), 0) || 0;
     const balance = total - paid;
     
     return `
@@ -50,7 +52,7 @@ export const generateCustomerStatement = async (customer: any, loans: any[]) => 
 
   const totalInv = loans.reduce((sum, l) => sum + Number(l.amount), 0);
   const totalInt = loans.reduce((sum, l) => sum + Number(l.interest), 0);
-  const totalPaid = loans.reduce((sum, l) => sum + (l.payments?.reduce((s: number, p: any) => s + Number(p.amount), 0) || 0), 0);
+  const totalPaid = loans.reduce((sum, l) => sum + (l.payments?.reduce((s: number, p) => s + Number(p.amount), 0) || 0), 0);
   const totalBal = (totalInv + totalInt) - totalPaid;
 
   const html = `
@@ -154,7 +156,7 @@ export const generateCustomerStatement = async (customer: any, loans: any[]) => 
   await generatePDF(html, `Statement_${customer.name.replace(/\s/g, '_')}.pdf`);
 };
 
-export const generateCollectionReport = async (payments: any[], periodLabel: string) => {
+export const generateCollectionReport = async (payments: PaymentWithRelations[], periodLabel: string) => {
   const tableRows = payments.map(payment => `
     <tr>
       <td>${format(new Date(payment.payment_date), 'MMM dd')}</td>
@@ -229,4 +231,50 @@ export const generateCollectionReport = async (payments: any[], periodLabel: str
   `;
 
   await generatePDF(html, `Collections_${periodLabel.replace(/\s/g, '_')}_${format(new Date(), 'HHmm')}.pdf`);
+};
+
+export const exportLoansToCSV = async (loans: LoanWithRelations[]) => {
+  const header = ['Date', 'Customer', 'Amount', 'Interest', 'Remaining', 'Status', 'Due Date'];
+  const rows = loans.map(l => [
+    format(new Date(l.created_at), 'yyyy-MM-dd'),
+    l.customers?.name || 'Unknown',
+    l.amount.toString(),
+    l.interest.toString(),
+    ((Number(l.amount) + Number(l.interest)) - (l.payments?.reduce((s, p) => s + Number(p.amount), 0) || 0)).toString(),
+    l.status,
+    l.due_date
+  ]);
+
+  const csvContent = [header, ...rows].map(r => r.join(',')).join('\n');
+  const fileName = `LendTrack_Loans_${format(new Date(), 'yyyyMMdd_HHmm')}.csv`;
+  const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+
+  try {
+    await FileSystem.writeAsStringAsync(fileUri, csvContent, { encoding: FileSystem.EncodingType.UTF8 });
+    await Sharing.shareAsync(fileUri, { mimeType: 'text/csv', dialogTitle: 'Export Loans' });
+  } catch (error) {
+    console.error('Error exporting CSV:', error);
+  }
+};
+
+export const exportPaymentsToCSV = async (payments: PaymentWithRelations[]) => {
+  const header = ['Date', 'Customer', 'Amount', 'Method', 'Reference'];
+  const rows = payments.map(p => [
+    format(new Date(p.payment_date), 'yyyy-MM-dd'),
+    p.loans?.customers?.name || 'Unknown',
+    p.amount.toString(),
+    p.payment_method || 'Cash',
+    p.reference_id || '-'
+  ]);
+
+  const csvContent = [header, ...rows].map(r => r.join(',')).join('\n');
+  const fileName = `LendTrack_Collections_${format(new Date(), 'yyyyMMdd_HHmm')}.csv`;
+  const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+
+  try {
+    await FileSystem.writeAsStringAsync(fileUri, csvContent, { encoding: FileSystem.EncodingType.UTF8 });
+    await Sharing.shareAsync(fileUri, { mimeType: 'text/csv', dialogTitle: 'Export Payments' });
+  } catch (error) {
+    console.error('Error exporting CSV:', error);
+  }
 };
