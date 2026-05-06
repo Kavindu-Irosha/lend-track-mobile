@@ -1,8 +1,8 @@
 import Constants from 'expo-constants'
 
-export const APP_VERSION = Constants.expoConfig?.version || '2.3.0'
-export const BUILD_NUMBER = "2026.04.12.01"
-export const LAST_OTA_UPDATE = "2026-04-12 01:12"
+export const APP_VERSION = Constants.expoConfig?.version || '2.5.0'
+export const BUILD_NUMBER = "2026.05.06.01"
+export const LAST_OTA_UPDATE = "2026-05-06 10:59"
 
 export type ChangelogItem = {
   version: string;
@@ -12,6 +12,20 @@ export type ChangelogItem = {
 }
 
 export const CHANGELOG: ChangelogItem[] = [
+  {
+    version: "2.5.0",
+    date: "2026-05-06",
+    title: "Premium Optimization & Insights",
+    notes: [
+      "Global Search Engine: Search across all customers and loan purposes instantly.",
+      "Professional Loan Calculator: Standalone tool for quick quotes (Flat & Reducing Balance).",
+      "Advanced Data Portability: Export loan portfolios and payment history to CSV/Excel.",
+      "Premium Dashboard: Redesigned Hero Card with glassmorphic accents and live badges.",
+      "Database Blueprint: Integrated schema.sql for one-click Supabase environment setup.",
+      "Strict TypeScript: Eliminated legacy 'any' types for production-grade stability.",
+      "Standardized UI: Standardized EmptyState components across all modules.",
+    ]
+  },
   {
     version: "2.4.0",
     date: "2026-04-21",
