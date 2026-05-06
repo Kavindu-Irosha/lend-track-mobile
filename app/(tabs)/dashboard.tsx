@@ -534,33 +534,14 @@ export default function DashboardScreen() {
           ) : (
             <View style={styles.timelineContainer}>
               {recentPayments.map((payment, index) => (
-                <View key={payment.id} style={[styles.timelineItem, settings.compactMode && { paddingVertical: 8 }]}>
-                  {/* Vertical Track Line */}
-                  {index !== recentPayments.length - 1 && (
-                    <View style={[styles.timelineLine, { backgroundColor: colors.border }, settings.compactMode && { top: 30 }]} />
-                  )}
-                  {/* Timeline Avatar Node */}
-                  <View style={[styles.timelineDot, { backgroundColor: `${colors.primary}15` }, settings.compactMode && { width: 32, height: 32, marginRight: 12 }]}>
-                    <Text style={{ color: colors.primary, fontWeight: '800', fontSize: settings.compactMode ? 12 : 14 }}>
-                      {(payment.loans?.customers?.name || 'U').charAt(0).toUpperCase()}
-                    </Text>
-                  </View>
-                  
-                  {/* Content Payload */}
-                  <View style={styles.timelineContent}>
-                    <View style={styles.timelineRow}>
-                      <Text style={[styles.timelineName, { color: colors.text }]}>
-                        {payment.loans?.customers?.name || 'Unknown'}
-                      </Text>
-                      <Text style={[styles.timelineAmount, { color: '#10b981' }]}>
-                        +{formatCurrency(payment.amount)}
-                      </Text>
-                    </View>
-                    <Text style={[styles.timelineDate, { color: colors.textSecondary }]}>
-                      {formatAppDate(new Date(payment.payment_date), true)} • Repayment
-                    </Text>
-                  </View>
-                </View>
+                <TimelineItem 
+                  key={payment.id} 
+                  payment={payment} 
+                  colors={colors} 
+                  settings={settings} 
+                  index={index} 
+                  isLast={index === recentPayments.length - 1} 
+                />
               ))}
             </View>
           )}
@@ -590,35 +571,12 @@ export default function DashboardScreen() {
           ) : (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}>
               {topPending.map((loan) => (
-                <TouchableOpacity
-                  key={loan.id}
-                  style={[styles.urgentCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
-                  onPress={() => router.push(`/(tabs)/customers/${loan.customerId}?name=${encodeURIComponent(loan.customerName)}`)}
-                  activeOpacity={0.9}
-                >
-                  <View style={styles.urgentHeader}>
-                    <View style={[styles.urgentAvatar, { backgroundColor: `${colors.primary}15` }]}>
-                      <Text style={[styles.urgentAvatarText, { color: colors.primary }]}>
-                        {loan.customerName.charAt(0).toUpperCase()}
-                      </Text>
-                    </View>
-                    <View style={[styles.urgentBadge, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}>
-                      <AlertCircle size={10} color="#ef4444" />
-                      <Text style={styles.urgentBadgeText}>Due</Text>
-                    </View>
-                  </View>
-                  <View style={styles.urgentContent}>
-                    <Text style={[styles.urgentName, { color: colors.textSecondary }]} numberOfLines={1}>{loan.customerName}</Text>
-                    <Text style={[styles.urgentAmount, { color: colors.text }]}>{formatCurrency(loan.remaining)}</Text>
-                  </View>
-                  
-                  <View style={[styles.urgentFooter, { borderTopColor: colors.border }]}>
-                    <Calendar size={12} color={colors.textTertiary} />
-                    <Text style={[styles.urgentDate, { color: colors.textSecondary }]}>
-                      {formatAppDate(new Date(loan.due_date))}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
+                <UrgentCard 
+                  key={loan.id} 
+                  loan={loan} 
+                  colors={colors} 
+                  router={router} 
+                />
               ))}
             </ScrollView>
           )}
@@ -628,6 +586,59 @@ export default function DashboardScreen() {
     </SafeAreaView>
   )
 }
+
+// ---- Memoized Components for Performance ----
+const TimelineItem = React.memo(({ payment, colors, settings, index, isLast }: any) => (
+  <View style={[styles.timelineItem, settings.compactMode && { paddingVertical: 8 }]}>
+    {!isLast && (
+      <View style={[styles.timelineLine, { backgroundColor: colors.border }, settings.compactMode && { top: 30 }]} />
+    )}
+    <View style={[styles.timelineDot, { backgroundColor: `${colors.primary}15` }, settings.compactMode && { width: 32, height: 32, marginRight: 12 }]}>
+      <Text style={{ color: colors.primary, fontWeight: '800', fontSize: settings.compactMode ? 12 : 14 }}>
+        {(payment.loans?.customers?.name || 'U').charAt(0).toUpperCase()}
+      </Text>
+    </View>
+    <View style={styles.timelineContent}>
+      <View style={styles.timelineRow}>
+        <Text style={[styles.timelineName, { color: colors.text }]}>{payment.loans?.customers?.name || 'Unknown'}</Text>
+        <Text style={[styles.timelineAmount, { color: '#10b981' }]}>+{formatCurrency(payment.amount)}</Text>
+      </View>
+      <Text style={[styles.timelineDate, { color: colors.textSecondary }]}>
+        {formatAppDate(new Date(payment.payment_date), true)} • Repayment
+      </Text>
+    </View>
+  </View>
+))
+
+const UrgentCard = React.memo(({ loan, colors, router }: any) => (
+  <TouchableOpacity
+    style={[styles.urgentCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
+    onPress={() => router.push(`/(tabs)/customers/${loan.customerId}?name=${encodeURIComponent(loan.customerName)}`)}
+    activeOpacity={0.9}
+  >
+    <View style={styles.urgentHeader}>
+      <View style={[styles.urgentAvatar, { backgroundColor: `${colors.primary}15` }]}>
+        <Text style={[styles.urgentAvatarText, { color: colors.primary }]}>
+          {loan.customerName.charAt(0).toUpperCase()}
+        </Text>
+      </View>
+      <View style={[styles.urgentBadge, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}>
+        <AlertCircle size={10} color="#ef4444" />
+        <Text style={styles.urgentBadgeText}>Due</Text>
+      </View>
+    </View>
+    <View style={styles.urgentContent}>
+      <Text style={[styles.urgentName, { color: colors.textSecondary }]} numberOfLines={1}>{loan.customerName}</Text>
+      <Text style={[styles.urgentAmount, { color: colors.text }]}>{formatCurrency(loan.remaining)}</Text>
+    </View>
+    <View style={[styles.urgentFooter, { borderTopColor: colors.border }]}>
+      <Calendar size={12} color={colors.textTertiary} />
+      <Text style={[styles.urgentDate, { color: colors.textSecondary }]}>
+        {formatAppDate(new Date(loan.due_date))}
+      </Text>
+    </View>
+  </TouchableOpacity>
+))
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
@@ -641,7 +652,7 @@ const styles = StyleSheet.create({
   pullHint: { fontSize: 11, fontWeight: '600', letterSpacing: 0.2 },
 
   // Hero Card Styles
-  heroCard: { margin: 16, padding: 24, borderRadius: 28, overflow: 'hidden', elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 12 },
+  heroCard: { marginVertical: 16, marginHorizontal: -16, padding: 24, borderRadius: 0, overflow: 'hidden', elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 12 },
   heroGlow: { position: 'absolute', top: -100, right: -100, width: 250, height: 250, borderRadius: 125, backgroundColor: 'rgba(255,255,255,0.15)' },
   heroLight: { position: 'absolute', bottom: -50, left: -50, width: 150, height: 150, borderRadius: 75, backgroundColor: 'rgba(255,255,255,0.08)' },
   heroLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },

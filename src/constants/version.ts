@@ -17,13 +17,13 @@ export const CHANGELOG: ChangelogItem[] = [
     date: "2026-05-06",
     title: "Premium Optimization & Insights",
     notes: [
+      "Zero-Lag Engine: Optimized chart processing and memoized UI lists for buttery-smooth performance.",
+      "Full-Bleed Dashboard: Hero card expanded to full screen width for maximum visual impact.",
+      "Global Currency Support: Added 20+ regional currencies including LKR, INR, and major global symbols.",
       "Global Search Engine: Search across all customers and loan purposes instantly.",
       "Professional Loan Calculator: Standalone tool for quick quotes (Flat & Reducing Balance).",
       "Advanced Data Portability: Export loan portfolios and payment history to CSV/Excel.",
-      "Premium Dashboard: Redesigned Hero Card with glassmorphic accents and live badges.",
       "Database Blueprint: Integrated schema.sql for one-click Supabase environment setup.",
-      "Strict TypeScript: Eliminated legacy 'any' types for production-grade stability.",
-      "Standardized UI: Standardized EmptyState components across all modules.",
     ]
   },
   {

@@ -120,6 +120,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const fetchChartData = async (rangeDays = 30) => {
     const startDate = new Date()
     startDate.setDate(startDate.getDate() - (rangeDays - 1))
+    startDate.setHours(0, 0, 0, 0)
     const startDateStr = startDate.toISOString().split('T')[0]
 
     const [pRes, lRes] = await Promise.all([
@@ -131,27 +132,28 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     const inValues: number[] = []
     const outValues: number[] = []
 
+    // Pre-process data into maps for O(1) lookup
+    const inMap = new Map<string, number>()
+    const outMap = new Map<string, number>()
+    const dateFormatStr = rangeDays <= 30 ? 'MMM dd' : 'MM/dd'
+
+    pRes.data?.forEach(p => {
+      const key = format(new Date(p.payment_date), dateFormatStr)
+      inMap.set(key, (inMap.get(key) || 0) + Number(p.amount))
+    })
+
+    lRes.data?.forEach(l => {
+      const key = format(new Date(l.start_date), dateFormatStr)
+      outMap.set(key, (outMap.get(key) || 0) + Number(l.amount))
+    })
+
     for (let i = rangeDays - 1; i >= 0; i--) {
       const d = new Date()
       d.setDate(d.getDate() - i)
-      const label = format(d, rangeDays <= 30 ? 'MMM dd' : 'MM/dd')
+      const label = format(d, dateFormatStr)
       labels.push(label)
-      
-      let inSum = 0
-      if (pRes.data) {
-        inSum = pRes.data
-          .filter(p => format(new Date(p.payment_date), rangeDays <= 30 ? 'MMM dd' : 'MM/dd') === label)
-          .reduce((s, p) => s + Number(p.amount), 0)
-      }
-      inValues.push(inSum)
-
-      let outSum = 0
-      if (lRes.data) {
-        outSum = lRes.data
-          .filter(l => format(new Date(l.start_date), rangeDays <= 30 ? 'MMM dd' : 'MM/dd') === label)
-          .reduce((s, loan) => s + Number(loan.amount), 0)
-      }
-      outValues.push(outSum)
+      inValues.push(inMap.get(label) || 0)
+      outValues.push(outMap.get(label) || 0)
     }
 
     const hasData = inValues.some(v => v > 0) || outValues.some(v => v > 0)

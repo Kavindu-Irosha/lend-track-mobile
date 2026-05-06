@@ -103,11 +103,17 @@ export function formatAppDate(date: Date | string, includeTime = false): string 
 
 export function formatCurrency(amount: number | string) {
   const numericAmount = Number(amount) || 0
-  const formatted = new Intl.NumberFormat('en-LK', {
+  const formatted = new Intl.NumberFormat('en-US', {
     minimumFractionDigits: cachedShowDecimals ? 2 : 0,
     maximumFractionDigits: cachedShowDecimals ? 2 : 0,
   }).format(numericAmount)
-  return `${cachedCurrency}. ${formatted}`
+
+  // Special handling for symbol placement
+  if (cachedCurrency === 'Rs' || cachedCurrency === 'LKR') {
+    return `${cachedCurrency}. ${formatted}`
+  }
+  
+  return `${cachedCurrency}${formatted}`
 }
 
 export function maskPhone(phone: string | null | undefined): string {

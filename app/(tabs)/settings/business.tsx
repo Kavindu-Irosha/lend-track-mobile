@@ -86,16 +86,31 @@ export default function BusinessSettingsScreen() {
             <Text style={[st.sectionTitle, { color: colors.text }]}>Currency Symbol</Text>
           </View>
           <View style={[st.card, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
-            <Text style={[st.inputHint, { color: colors.textTertiary, paddingHorizontal: 16, paddingTop: 16 }]}>Symbol shown in all monetary displays</Text>
-            <View style={st.chipRow}>
-              {(['Rs', 'LKR', '$'] as const).map((cur) => (
+            <Text style={[st.inputHint, { color: colors.textTertiary, paddingHorizontal: 16, paddingTop: 16 }]}>Choose your business currency symbol</Text>
+            <View style={st.currencyGrid}>
+              {([
+                'Rs', 'LKR', '$', '€', '£', '₹', 'A$', 'C$', 'S$', '¥', 
+                'د.إ', 'ر.س', '৳', '₱', 'RM', '฿', '₫', 'Rp', '₽', '₪'
+              ] as const).map((cur) => (
                 <TouchableOpacity
                   key={cur}
-                  style={[st.chip, { backgroundColor: settings.defaultCurrency === cur ? colors.primary : isDark ? '#1e293b' : '#f1f5f9' }]}
+                  style={[
+                    st.currencyChip, 
+                    { 
+                      backgroundColor: settings.defaultCurrency === cur ? colors.primary : isDark ? '#1e293b' : '#f1f5f9',
+                      borderColor: settings.defaultCurrency === cur ? colors.primary : colors.cardBorder
+                    }
+                  ]}
                   onPress={() => { triggerHapticSelection(); updateSetting('defaultCurrency', cur) }}
                   activeOpacity={0.8}
                 >
-                  <Text style={{ color: settings.defaultCurrency === cur ? '#fff' : colors.textSecondary, fontSize: 14, fontWeight: '700' }}>{cur}</Text>
+                  <Text style={{ 
+                    color: settings.defaultCurrency === cur ? '#fff' : colors.textSecondary, 
+                    fontSize: 13, 
+                    fontWeight: '800' 
+                  }}>
+                    {cur}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -150,4 +165,7 @@ const st = StyleSheet.create({
 
   chipRow: { flexDirection: 'row', gap: 10, padding: 16, paddingTop: 12 },
   chip: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
+
+  currencyGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, padding: 16, paddingTop: 8 },
+  currencyChip: { width: '22%', paddingVertical: 12, borderRadius: 12, alignItems: 'center', borderWidth: 1 },
 })
