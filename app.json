@@ -47,7 +47,7 @@
         "expo-notifications"
       ]
     ],
-    "runtimeVersion": "2.3.0",
+    "runtimeVersion": "2.4.0",
     "updates": {
       "enabled": true,
       "checkAutomatically": "ON_LOAD",
