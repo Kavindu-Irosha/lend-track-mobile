@@ -20,6 +20,7 @@ import { useSettings } from '@/src/context/SettingsContext'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import StatsCard from '@/src/components/StatsCard'
 import LoadingSpinner from '@/src/components/LoadingSpinner'
+import EmptyState from '@/src/components/EmptyState'
 import { useDashboard } from '@/src/context/DashboardContext'
 import { useAlert } from '@/src/context/AlertContext'
 import { 
@@ -40,7 +41,8 @@ import {
   ArrowRight,
   TrendingUpDown,
   CircleDollarSign,
-  Briefcase
+  Briefcase,
+  Search
 } from 'lucide-react-native'
 import { format } from 'date-fns'
 import { LineChart } from 'react-native-chart-kit'
@@ -160,16 +162,28 @@ export default function DashboardScreen() {
               <Text style={[styles.pullHint, { color: colors.textTertiary }]}>Swipe down to sync data</Text>
             </View>
           </View>
-          <TouchableOpacity
-            style={[styles.settingsButton, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
-            onPress={() => {
-              triggerHapticImpact()
-              router.navigate('/(tabs)/settings')
-            }}
-            activeOpacity={0.7}
-          >
-            <Settings size={20} color={colors.textSecondary} />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row' }}>
+            <TouchableOpacity
+              style={[styles.settingsButton, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
+              onPress={() => {
+                triggerHapticImpact()
+                router.navigate('/(tabs)/settings')
+              }}
+              activeOpacity={0.7}
+            >
+              <Settings size={20} color={colors.textSecondary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.settingsButton, { backgroundColor: colors.surface, borderColor: colors.cardBorder, marginLeft: 8 }]}
+              onPress={() => {
+                triggerHapticImpact()
+                router.push('/search')
+              }}
+              activeOpacity={0.7}
+            >
+              <Search size={20} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
         </Animated.View>
 
         {/* Elite Hero Portfolio Card */}
@@ -177,34 +191,29 @@ export default function DashboardScreen() {
           entering={isPerformanceMode() ? FadeInDown : FadeInDown.delay(50).duration(500).springify()} 
           style={[
             styles.heroCard, 
-            { backgroundColor: colors.primary },
-            settings.compactMode && { padding: 16, marginTop: 0, borderRadius: 16 }
+            { backgroundColor: colors.primary }
           ]}
         >
           <View style={styles.heroGlow} />
-          <Text style={[styles.heroLabel, settings.compactMode && { fontSize: 11 }]}>Total Portfolio Disbursed</Text>
-          <Text 
-            style={[styles.heroBalance, settings.compactMode && { fontSize: 30, marginBottom: 16 }]} 
-            adjustsFontSizeToFit 
-            numberOfLines={1}
-          >
-            {formatCurrency(stats.principalDisbursed)}
-          </Text>
-          
-          <View style={styles.heroSubRow}>
-            <View style={styles.heroSubBlock}>
-              <View style={[styles.heroSubIcon, settings.compactMode && { width: 24, height: 24 }]}><TrendingUp size={settings.compactMode ? 12 : 14} color="#fff" /></View>
-              <View>
-                <Text style={[styles.heroSubLabel, settings.compactMode && { fontSize: 9 }]}>Collected</Text>
-                <Text style={[styles.heroSubValue, settings.compactMode && { fontSize: 13 }]}>{formatCurrency(stats.totalCollected)}</Text>
+          <View style={styles.heroLight} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.heroLabel}>Net Portfolio Value</Text>
+            <View style={styles.heroAmountRow}>
+              <Text style={styles.heroAmount}>{formatCurrency(stats.totalPending)}</Text>
+              <View style={styles.heroBadge}>
+                <TrendingUp size={12} color="#fff" />
+                <Text style={styles.heroBadgeText}>LIVE</Text>
               </View>
             </View>
-            <View style={[styles.heroSubDivider, settings.compactMode && { height: 20, marginHorizontal: 8 }]} />
-            <View style={styles.heroSubBlock}>
-              <View style={[styles.heroSubIcon, settings.compactMode && { width: 24, height: 24 }]}><CircleDollarSign size={settings.compactMode ? 12 : 14} color="#fff" /></View>
+            <View style={styles.heroStats}>
               <View>
-                <Text style={[styles.heroSubLabel, settings.compactMode && { fontSize: 9 }]}>Profit</Text>
-                <Text style={[styles.heroSubValue, settings.compactMode && { fontSize: 13 }]}>{formatCurrency(stats.expectedProfit)}</Text>
+                <Text style={styles.heroStatLabel}>Total Disbursed</Text>
+                <Text style={styles.heroStatValue}>{formatCurrency(stats.principalDisbursed)}</Text>
+              </View>
+              <View style={styles.heroStatSep} />
+              <View>
+                <Text style={styles.heroStatLabel}>Est. Profit</Text>
+                <Text style={styles.heroStatValue}>+{formatCurrency(stats.expectedProfit)}</Text>
               </View>
             </View>
           </View>
@@ -257,6 +266,20 @@ export default function DashboardScreen() {
               <Receipt size={settings.compactMode ? 18 : 22} color="#10b981" />
             </View>
             <Text style={[styles.actionPillarText, { color: colors.text }]}>Pay</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.actionPillar, { backgroundColor: colors.surface, borderColor: colors.cardBorder }, settings.compactMode && { paddingVertical: 10 }]} 
+            activeOpacity={0.8}
+            onPress={() => {
+              triggerHapticImpact(ImpactStyle.Medium)
+              router.push('/calculator')
+            }}
+          >
+            <View style={[styles.actionPillarIcon, { backgroundColor: 'rgba(139, 92, 246, 0.15)' }, settings.compactMode && { width: 36, height: 36, marginBottom: 4 }]}>
+              <Calculator size={settings.compactMode ? 18 : 22} color="#8b5cf6" />
+            </View>
+            <Text style={[styles.actionPillarText, { color: colors.text }]}>Quotes</Text>
           </TouchableOpacity>
         </Animated.View>
 
@@ -466,7 +489,7 @@ export default function DashboardScreen() {
                 onDataPointClick={({ value, index }) => {
                   triggerHapticImpact()
                   setSelectedPoint({
-                    label: Object.keys(contextChartData.labels).length > 0 ? contextChartData.labels[index] || "Date" : "Date",
+                    label: contextChartData.labels.length > 0 ? contextChartData.labels[index] || "Date" : "Date",
                     in: contextChartData.inData[index] || 0,
                     out: contextChartData.outData[index] || 0
                   })
@@ -500,10 +523,14 @@ export default function DashboardScreen() {
             </TouchableOpacity>
           </View>
           {recentPayments.length === 0 ? (
-            <View style={styles.emptyContainer}>
-               <Text style={[styles.emptyText, { color: colors.textTertiary }]}>🎉 You're all caught up!</Text>
-               <Text style={styles.emptySub}>No payments recorded yet.</Text>
-            </View>
+            <EmptyState
+              icon={Receipt}
+              title="No recent activity"
+              description="Your collections will appear here in real-time."
+              actionLabel="Record Payment"
+              onAction={() => router.push('/(tabs)/payments/new')}
+              compact
+            />
           ) : (
             <View style={styles.timelineContainer}>
               {recentPayments.map((payment, index) => (
@@ -552,8 +579,13 @@ export default function DashboardScreen() {
           </View>
           
           {topPending.length === 0 ? (
-            <View style={[styles.emptyContainer, { marginHorizontal: 16, backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.cardBorder }]}>
-               <Text style={[styles.emptyText, { color: colors.textTertiary }]}>No urgent pending loans found.</Text>
+            <View style={{ paddingHorizontal: 16 }}>
+              <EmptyState
+                icon={CheckCircle2}
+                title="No action required"
+                description="All loans are currently up to date. Excellent portfolio health!"
+                compact
+              />
             </View>
           ) : (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}>
@@ -609,16 +641,18 @@ const styles = StyleSheet.create({
   pullHint: { fontSize: 11, fontWeight: '600', letterSpacing: 0.2 },
 
   // Hero Card Styles
-  heroCard: { width: '100%', borderRadius: 24, padding: 24, marginTop: 4, elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, overflow: 'hidden' },
-  heroGlow: { position: 'absolute', top: -40, right: -40, width: 150, height: 150, borderRadius: 75, backgroundColor: '#ffffff', opacity: 0.1 },
-  heroLabel: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.8)', textTransform: 'uppercase', letterSpacing: 1 },
-  heroBalance: { fontSize: 38, fontWeight: '800', color: '#fff', marginTop: 8, marginBottom: 24, letterSpacing: -1 },
-  heroSubRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  heroSubBlock: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  heroSubIcon: { width: 32, height: 32, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
-  heroSubLabel: { fontSize: 11, color: 'rgba(255,255,255,0.7)', fontWeight: '500' },
-  heroSubValue: { fontSize: 14, fontWeight: '700', color: '#fff', marginTop: 2 },
-  heroSubDivider: { width: 1, height: 30, backgroundColor: 'rgba(255,255,255,0.2)', marginHorizontal: 16 },
+  heroCard: { margin: 16, padding: 24, borderRadius: 28, overflow: 'hidden', elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 12 },
+  heroGlow: { position: 'absolute', top: -100, right: -100, width: 250, height: 250, borderRadius: 125, backgroundColor: 'rgba(255,255,255,0.15)' },
+  heroLight: { position: 'absolute', bottom: -50, left: -50, width: 150, height: 150, borderRadius: 75, backgroundColor: 'rgba(255,255,255,0.08)' },
+  heroLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
+  heroAmountRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 },
+  heroAmount: { color: '#fff', fontSize: 32, fontWeight: '900', letterSpacing: -1 },
+  heroBadge: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  heroBadgeText: { color: '#fff', fontSize: 10, fontWeight: '900' },
+  heroStats: { flexDirection: 'row', alignItems: 'center', gap: 20, paddingTop: 20, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.15)' },
+  heroStatSep: { width: 1, height: 24, backgroundColor: 'rgba(255,255,255,0.2)' },
+  heroStatLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: '600', marginBottom: 2 },
+  heroStatValue: { color: '#fff', fontSize: 16, fontWeight: '800' },
 
   // Action Grid
   actionGrid: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, marginTop: -20, marginBottom: 16, paddingHorizontal: 10, zIndex: 10 },

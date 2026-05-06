@@ -29,7 +29,7 @@ import { LineChart, BarChart } from 'react-native-chart-kit'
 import { X, Calendar, ChevronRight, BarChart3, List, Download as DownloadIcon } from 'lucide-react-native'
 import { startOfMonth, endOfMonth, subMonths, subDays } from 'date-fns'
 import DateTimePicker from '@react-native-community/datetimepicker'
-import { generateCollectionReport } from '@/src/lib/reports'
+import { generateCollectionReport, exportPaymentsToCSV } from '@/src/lib/reports'
 
 const screenWidth = Dimensions.get('window').width
 
@@ -506,6 +506,25 @@ export default function PaymentsScreen() {
                     </TouchableOpacity>
                   </View>
                 )}
+
+                {/* Data Export (CSV) */}
+                <View style={{ marginTop: 24, paddingTop: 20, borderTopWidth: 1, borderTopColor: colors.border }}>
+                  <Text style={{ fontSize: 12, fontWeight: '800', color: colors.textTertiary, textTransform: 'uppercase', marginBottom: 12, letterSpacing: 0.5 }}>Advanced Data Export (CSV)</Text>
+                  
+                  <TouchableOpacity 
+                    style={[styles.csvBtn, { backgroundColor: isDark ? '#1e293b' : '#f8fafc', borderColor: colors.cardBorder }]} 
+                    onPress={async () => {
+                      setExportLoading(true)
+                      await exportPaymentsToCSV(payments)
+                      setExportLoading(false)
+                      setShowExportModal(false)
+                    }}
+                    disabled={exportLoading}
+                  >
+                    <DownloadIcon size={18} color="#10b981" />
+                    <Text style={[styles.csvBtnText, { color: colors.text }]}>Export All Payments to CSV</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           </View>
@@ -592,4 +611,6 @@ const styles = StyleSheet.create({
   dateSep: { width: 1, height: 24, marginHorizontal: 16 },
   generateBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 14, borderRadius: 12 },
   generateBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  csvBtn: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 12, borderWidth: 1 },
+  csvBtnText: { fontSize: 14, fontWeight: '600' },
 })

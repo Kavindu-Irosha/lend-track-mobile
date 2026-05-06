@@ -20,9 +20,10 @@ import LoadingSpinner from '@/src/components/LoadingSpinner'
 import EmptyState from '@/src/components/EmptyState'
 import { 
   Plus, Search, CreditCard, Download, Calendar, X, ChevronRight, 
-  Trash2, Filter, TrendingUp, AlertCircle, CheckCircle2, Wallet, Activity 
+  Trash2, Filter, TrendingUp, AlertCircle, CheckCircle2, Wallet, Activity,
+  FileText
 } from 'lucide-react-native'
-import { generateCollectionReport } from '@/src/lib/reports'
+import { generateCollectionReport, exportLoansToCSV, exportPaymentsToCSV } from '@/src/lib/reports'
 import { formatCurrency, triggerHapticImpact, triggerHapticNotification, isPerformanceMode, ImpactStyle, NotificationType } from '@/src/lib/utils'
 import { format, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns'
 import DateTimePicker from '@react-native-community/datetimepicker'
@@ -450,6 +451,40 @@ export default function LoansScreen() {
                   </TouchableOpacity>
                 </View>
               )}
+
+              {/* Data Export (CSV) */}
+              <View style={{ marginTop: 24, paddingTop: 20, borderTopWidth: 1, borderTopColor: colors.border }}>
+                <Text style={{ fontSize: 12, fontWeight: '800', color: colors.textTertiary, textTransform: 'uppercase', marginBottom: 12, letterSpacing: 0.5 }}>Advanced Data Export (CSV)</Text>
+                
+                <TouchableOpacity 
+                  style={[styles.csvBtn, { backgroundColor: isDark ? '#1e293b' : '#f8fafc', borderColor: colors.cardBorder }]} 
+                  onPress={async () => {
+                    setExportLoading(true)
+                    await exportLoansToCSV(loans)
+                    setExportLoading(false)
+                    setShowExportModal(false)
+                  }}
+                  disabled={exportLoading}
+                >
+                  <FileText size={18} color="#3b82f6" />
+                  <Text style={[styles.csvBtnText, { color: colors.text }]}>Export Loan Portfolio</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={[styles.csvBtn, { backgroundColor: isDark ? '#1e293b' : '#f8fafc', borderColor: colors.cardBorder, marginTop: 8 }]} 
+                  onPress={async () => {
+                    setExportLoading(true)
+                    const { data } = await supabase.from('payments').select('*, loans(id, customers(name))').order('payment_date', { ascending: false })
+                    if (data) await exportPaymentsToCSV(data)
+                    setExportLoading(false)
+                    setShowExportModal(false)
+                  }}
+                  disabled={exportLoading}
+                >
+                  <TrendingUp size={18} color="#10b981" />
+                  <Text style={[styles.csvBtnText, { color: colors.text }]}>Export Full Payment History</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </View>
@@ -524,4 +559,6 @@ const styles = StyleSheet.create({
   dateSep: { width: 1, height: 24, backgroundColor: '#eee', marginHorizontal: 16 },
   generateBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 14, borderRadius: 12 },
   generateBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  csvBtn: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 12, borderWidth: 1 },
+  csvBtnText: { fontSize: 14, fontWeight: '600' },
 })
