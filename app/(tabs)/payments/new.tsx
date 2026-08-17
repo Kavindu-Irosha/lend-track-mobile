@@ -26,9 +26,10 @@ import { supabase } from '@/src/lib/supabase'
 
 import FormInput from '@/src/components/FormInput'
 import { ArrowLeft, ChevronDown, Check, Calendar as CalendarIcon, CreditCard, Wallet, User, Clock } from 'lucide-react-native'
-import { format } from 'date-fns'
-import { formatCurrency, triggerHapticImpact, triggerHapticNotification, ImpactStyle, NotificationType } from '@/src/lib/utils'
+import { format, differenceInDays, differenceInWeeks, differenceInMonths } from 'date-fns'
+import { formatCurrency, triggerHapticImpact, triggerHapticNotification, ImpactStyle, NotificationType, escapeHtml } from '@/src/lib/utils'
 import { useAlert } from '@/src/context/AlertContext'
+import { useSettings } from '@/src/context/SettingsContext'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import * as Print from 'expo-print'
 import * as Sharing from 'expo-sharing'
@@ -41,6 +42,7 @@ interface ProcessedLoan {
   total: number
   installmentAmount: number
   startDate: string
+  dueDate: string
 }
 
 export default function NewPaymentScreen() {
@@ -48,6 +50,7 @@ export default function NewPaymentScreen() {
   const { colors, isDark } = useTheme()
   const { user } = useAuth()
   const { showAlert } = useAlert()
+  const { settings } = useSettings()
   const router = useRouter()
 
   const [loans, setLoans] = useState<ProcessedLoan[]>([])
@@ -97,7 +100,7 @@ export default function NewPaymentScreen() {
       async function fetchLoans() {
         const { data } = await supabase
           .from('loans')
-          .select('id, amount, interest, installment_type, start_date, customers(name), payments(amount)')
+          .select('id, amount, interest, installment_type, start_date, due_date, customers(name), payments(amount)')
           .order('created_at', { ascending: false })
 
         const processed = (data || []).map((loan) => {
@@ -107,7 +110,15 @@ export default function NewPaymentScreen() {
           ) || 0
           const remaining = loanTotal - paid
 
-          const divisor = loan.installment_type === 'daily' ? 30 : (loan.installment_type === 'weekly' ? 4 : 1)
+          let divisor = 1
+          if (loan.start_date && loan.due_date) {
+            const start = new Date(loan.start_date)
+            const due = new Date(loan.due_date)
+            if (loan.installment_type === 'daily') divisor = Math.max(1, differenceInDays(due, start))
+            else if (loan.installment_type === 'weekly') divisor = Math.max(1, differenceInWeeks(due, start))
+            else divisor = Math.max(1, differenceInMonths(due, start))
+          }
+
           const installmentAmount = Math.min(remaining, Math.ceil(loanTotal / divisor))
 
           return {
@@ -116,7 +127,8 @@ export default function NewPaymentScreen() {
             remaining,
             total: loanTotal,
             installmentAmount,
-            startDate: loan.start_date
+            startDate: loan.start_date,
+            dueDate: loan.due_date
           }
         }).filter((loan) => loan.remaining > 0 || loan.id === loan_id)
 
@@ -135,7 +147,7 @@ export default function NewPaymentScreen() {
         if (loan_id) setSelectedLoanId(loan_id)
       }
       fetchLoans()
-    }, [loan_id, showAlert])
+    }, [loan_id])
   )
 
   useEffect(() => {
@@ -185,7 +197,7 @@ export default function NewPaymentScreen() {
       const overpaid = amountNum - selectedLoan.remaining
       showAlert({
         title: 'Invalid Transaction',
-        message: `This payment exceeds the remaining balance by Rs. ${overpaid.toLocaleString()}. You cannot pay more than the outstanding debt.`,
+        message: `This payment exceeds the remaining balance by ${settings.defaultCurrency} ${overpaid.toLocaleString()}. You cannot pay more than the outstanding debt.`,
         type: 'error'
       })
       return
@@ -208,6 +220,10 @@ export default function NewPaymentScreen() {
         setError(dbError.message)
         triggerHapticNotification(NotificationType.Error)
       } else {
+        if (selectedLoan && selectedLoan.remaining - amountNum <= 0) {
+          await supabase.from('loans').update({ status: 'completed' }).eq('id', selectedLoanId)
+        }
+        
         triggerHapticNotification(NotificationType.Success)
         setSuccessData({
           amount: amountNum,
@@ -266,7 +282,7 @@ export default function NewPaymentScreen() {
               </tr>
               <tr class="table-row">
                 <td class="label">Received From</td>
-                <td class="value">${successData.customer}</td>
+                <td class="value">${escapeHtml(successData.customer)}</td>
               </tr>
               <tr class="table-row">
                 <td class="label">Payment Method</td>

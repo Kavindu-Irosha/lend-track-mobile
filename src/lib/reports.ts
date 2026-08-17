@@ -1,6 +1,6 @@
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import * as FileSystem from 'expo-file-system';
+import { File, Paths } from 'expo-file-system';
 import { format } from 'date-fns';
 import { formatCurrency } from './utils';
 import { Customer, LoanWithRelations, PaymentWithRelations } from '../types';
@@ -247,11 +247,11 @@ export const exportLoansToCSV = async (loans: LoanWithRelations[]) => {
 
   const csvContent = [header, ...rows].map(r => r.join(',')).join('\n');
   const fileName = `LendTrack_Loans_${format(new Date(), 'yyyyMMdd_HHmm')}.csv`;
-  const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+  const file = new File(Paths.cache, fileName);
 
   try {
-    await FileSystem.writeAsStringAsync(fileUri, csvContent, { encoding: FileSystem.EncodingType.UTF8 });
-    await Sharing.shareAsync(fileUri, { mimeType: 'text/csv', dialogTitle: 'Export Loans' });
+    file.write(csvContent);
+    await Sharing.shareAsync(file.uri, { mimeType: 'text/csv', dialogTitle: 'Export Loans' });
   } catch (error) {
     console.error('Error exporting CSV:', error);
   }
@@ -269,11 +269,11 @@ export const exportPaymentsToCSV = async (payments: PaymentWithRelations[]) => {
 
   const csvContent = [header, ...rows].map(r => r.join(',')).join('\n');
   const fileName = `LendTrack_Collections_${format(new Date(), 'yyyyMMdd_HHmm')}.csv`;
-  const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+  const file = new File(Paths.cache, fileName);
 
   try {
-    await FileSystem.writeAsStringAsync(fileUri, csvContent, { encoding: FileSystem.EncodingType.UTF8 });
-    await Sharing.shareAsync(fileUri, { mimeType: 'text/csv', dialogTitle: 'Export Payments' });
+    file.write(csvContent);
+    await Sharing.shareAsync(file.uri, { mimeType: 'text/csv', dialogTitle: 'Export Payments' });
   } catch (error) {
     console.error('Error exporting CSV:', error);
   }

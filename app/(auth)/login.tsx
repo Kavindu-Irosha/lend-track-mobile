@@ -18,19 +18,23 @@ import { useSecurity } from '@/src/context/SecurityContext'
 import { useRouter } from 'expo-router'
 import { triggerHapticImpact } from '@/src/lib/utils'
 import * as Haptics from 'expo-haptics'
+import { Eye, EyeOff } from 'lucide-react-native'
+import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated'
 
 export default function LoginScreen() {
   const { signIn, signUp } = useAuth()
   const { colors, isDark } = useTheme()
-  const { showAlert } = useAlert()
-  const { saveCredentials, isBiometricEnabled, authenticate, isAuthenticated } = useSecurity()
+  const { showAlert, showToast } = useAlert()
+  const { isBiometricEnabled, authenticate, isAuthenticated } = useSecurity()
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [mode, setMode] = useState<'signin' | 'signup'>('signin')
   const [hasAccountSetup, setHasAccountSetup] = useState<boolean>(false)
   const [lockoutUntil, setLockoutUntil] = useState<number | null>(null)
+  const [timeLeft, setTimeLeft] = useState<number>(0)
 
   // Track if this device has ever successfully launched an account & check lockouts
   React.useEffect(() => {
@@ -53,6 +57,24 @@ export default function LoginScreen() {
     }
     checkAccountStatus()
   }, [])
+
+  React.useEffect(() => {
+    let interval: NodeJS.Timeout
+    if (lockoutUntil) {
+      interval = setInterval(() => {
+        const remaining = lockoutUntil - Date.now()
+        if (remaining <= 0) {
+          setLockoutUntil(null)
+          setTimeLeft(0)
+          AsyncStorage.removeItem('@lockout_until')
+          AsyncStorage.removeItem('@failed_attempts')
+        } else {
+          setTimeLeft(remaining)
+        }
+      }, 1000)
+    }
+    return () => clearInterval(interval)
+  }, [lockoutUntil])
 
   const handleSubmit = async () => {
     if (lockoutUntil && lockoutUntil > Date.now()) {
@@ -98,10 +120,10 @@ export default function LoginScreen() {
             })
           } else {
             await AsyncStorage.setItem('@failed_attempts', attempts.toString())
-            showAlert({
-              title: 'Error',
+            showToast({
               message: `Invalid credentials. Attempt ${attempts} of 5.`,
-              type: 'error'
+              type: 'error',
+              duration: 3000
             })
           }
         } else {
@@ -131,11 +153,8 @@ export default function LoginScreen() {
             type: 'success'
           })
           // Auto-login and redirect instead of moving to sign-in mode
-          await saveCredentials(email.trim(), password)
           router.replace('/(tabs)/dashboard')
         } else {
-          // Explicitly save for biometrics if enabled
-          await saveCredentials(email.trim(), password)
           // Explicit redirect on sign in success
           router.replace('/(tabs)/dashboard')
         }
@@ -145,14 +164,24 @@ export default function LoginScreen() {
     }
   }
 
+  const formatTime = (ms: number) => {
+    const totalSeconds = Math.floor(Math.max(0, ms) / 1000)
+    const minutes = Math.floor(totalSeconds / 60)
+    const seconds = totalSeconds % 60
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+  }
+
+  const isLocked = lockoutUntil && lockoutUntil > Date.now()
+
   return (
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: colors.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior="padding"
     >
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets={true}
       >
         {/* Logo Section */}
         <View style={styles.logoSection}>
@@ -166,7 +195,17 @@ export default function LoginScreen() {
         </View>
 
         {/* Form Card */}
-        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+        {isLocked ? (
+          <Animated.View entering={FadeInDown} exiting={FadeOutUp} style={[styles.lockedCard, { backgroundColor: isDark ? '#450a0a' : '#fee2e2', borderColor: isDark ? '#7f1d1d' : '#ef4444' }]}>
+            <Animated.View entering={FadeInDown.delay(100).springify()} style={{ marginBottom: 16 }}>
+              <Text style={{ fontSize: 48 }}>🔒</Text>
+            </Animated.View>
+            <Text style={[styles.lockedTitle, { color: isDark ? '#fca5a5' : '#b91c1c' }]}>Account Locked</Text>
+            <Text style={[styles.lockedSub, { color: isDark ? '#f87171' : '#991b1b' }]}>For your security, please wait before trying again.</Text>
+            <Text style={[styles.timerText, { color: isDark ? '#fecaca' : '#ef4444' }]}>{formatTime(timeLeft)}</Text>
+          </Animated.View>
+        ) : (
+          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: colors.textSecondary }]}>Email address</Text>
             <TextInput
@@ -184,16 +223,29 @@ export default function LoginScreen() {
 
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: colors.textSecondary }]}>Password</Text>
-            <TextInput
-              style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
-              placeholder="••••••••"
-              placeholderTextColor={colors.textTertiary}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              autoComplete="password"
-              textContentType="password"
-            />
+            <View style={styles.passwordContainer}>
+              <TextInput
+                style={[styles.input, styles.passwordInput, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+                placeholder="••••••••"
+                placeholderTextColor={colors.textTertiary}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                autoComplete="password"
+                textContentType="password"
+              />
+              <TouchableOpacity
+                style={styles.eyeIconContainer}
+                onPress={() => setShowPassword(!showPassword)}
+                activeOpacity={0.7}
+              >
+                {showPassword ? (
+                  <EyeOff size={20} color={colors.textTertiary} />
+                ) : (
+                  <Eye size={20} color={colors.textTertiary} />
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
 
           <TouchableOpacity
@@ -220,6 +272,7 @@ export default function LoginScreen() {
             </Text>
           </TouchableOpacity>
         </View>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   )
@@ -283,6 +336,19 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     fontSize: 16,
   },
+  passwordContainer: {
+    position: 'relative',
+    justifyContent: 'center',
+  },
+  passwordInput: {
+    paddingRight: 50,
+  },
+  eyeIconContainer: {
+    position: 'absolute',
+    right: 16,
+    height: '100%',
+    justifyContent: 'center',
+  },
   primaryButton: {
     borderRadius: 12,
     paddingVertical: 15,
@@ -342,5 +408,28 @@ const styles = StyleSheet.create({
   fallbackText: {
     fontWeight: '600',
     fontSize: 15,
+  },
+  lockedCard: {
+    padding: 32,
+    borderRadius: 24,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lockedTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
+  lockedSub: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  timerText: {
+    fontSize: 48,
+    fontWeight: '900',
+    fontVariant: ['tabular-nums'],
   }
 })

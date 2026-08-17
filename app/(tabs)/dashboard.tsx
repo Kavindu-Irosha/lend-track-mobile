@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect } from 'react'
+import React, { useCallback, useState, useEffect, useRef } from 'react'
 import {
   View,
   Text,
@@ -45,7 +45,7 @@ import {
   Search
 } from 'lucide-react-native'
 import { format } from 'date-fns'
-import { LineChart } from 'react-native-chart-kit'
+import { StackedBarChart } from 'react-native-chart-kit'
 
 const screenWidth = Dimensions.get('window').width
 
@@ -58,19 +58,38 @@ export default function DashboardScreen() {
   
   const { 
     stats, recentPayments, topPending, chartData: contextChartData, 
-    isChartEmpty, loading, refreshing, fetchDashboardData 
+    isChartEmpty, loading, refreshing, fetchDashboardData, fetchChartData
   } = useDashboard()
 
   const [focusKey, setFocusKey] = useState(0)
   const [timeRange, setTimeRange] = useState<'7d' | '1m' | '3m' | '6m'>('1m')
   const [selectedPoint, setSelectedPoint] = useState<{ label: string; in: number; out: number } | null>(null)
   const [chartLoading, setChartLoading] = useState(false)
+  const [recentViews, setRecentViews] = useState<{ id: string; name: string; timestamp: number }[]>([])
+  const timeRangeRef = useRef(timeRange)
+
+  useEffect(() => {
+    timeRangeRef.current = timeRange
+    const days = { '7d': 7, '1m': 30, '3m': 90, '6m': 180 }[timeRange] || 30
+    setChartLoading(true)
+    fetchChartData(days).finally(() => setChartLoading(false))
+  }, [timeRange, fetchChartData])
 
   useFocusEffect(
     useCallback(() => {
       fetchDashboardData(false) // Use cache if available
+      
+      // Explicitly fetch chart data for the current timeRange (fixes reset bug)
+      const days = { '7d': 7, '1m': 30, '3m': 90, '6m': 180 }[timeRangeRef.current] || 30
+      fetchChartData(days)
+      
       setFocusKey(prev => prev + 1)
-    }, [fetchDashboardData])
+      
+      // Load recent views
+      AsyncStorage.getItem('@lendtrack_recent_views').then(val => {
+        if (val) setRecentViews(JSON.parse(val))
+      }).catch(err => console.warn('Failed to load recent views', err))
+    }, [fetchDashboardData, fetchChartData])
   )
 
   // ---- Daily Morning Digest ----
@@ -124,9 +143,11 @@ export default function DashboardScreen() {
     return () => clearTimeout(timer)
   }, [settings.dailySummary, loading])
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     triggerHapticNotification()
-    fetchDashboardData(true)
+    await fetchDashboardData(true)
+    const days = { '7d': 7, '1m': 30, '3m': 90, '6m': 180 }[timeRangeRef.current] || 30
+    fetchChartData(days)
   }
 
   if (loading) return <LoadingSpinner message="Loading dashboard..." />
@@ -186,7 +207,7 @@ export default function DashboardScreen() {
           </View>
         </Animated.View>
 
-        {/* Elite Hero Portfolio Card */}
+        {/* Daily Operations Hero Card */}
         <Animated.View 
           entering={isPerformanceMode() ? FadeInDown : FadeInDown.delay(50).duration(500).springify()} 
           style={[
@@ -197,90 +218,122 @@ export default function DashboardScreen() {
           <View style={styles.heroGlow} />
           <View style={styles.heroLight} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.heroLabel}>Net Portfolio Value</Text>
+            <Text style={styles.heroLabel}>Expected Today</Text>
             <View style={styles.heroAmountRow}>
-              <Text style={styles.heroAmount}>{formatCurrency(stats.totalPending)}</Text>
-              <View style={styles.heroBadge}>
-                <TrendingUp size={12} color="#fff" />
-                <Text style={styles.heroBadgeText}>LIVE</Text>
+              <Text style={styles.heroAmount}>{formatCurrency(stats.expectedToday)}</Text>
+              <View style={[styles.heroBadge, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+                <CalendarIcon size={12} color="#fff" />
+                <Text style={styles.heroBadgeText}>{stats.dueTodayCount} Due</Text>
               </View>
             </View>
-            <View style={styles.heroStats}>
-              <View>
-                <Text style={styles.heroStatLabel}>Total Disbursed</Text>
-                <Text style={styles.heroStatValue}>{formatCurrency(stats.principalDisbursed)}</Text>
+            <View style={{ flexDirection: 'column', gap: 10, paddingTop: 20, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.15)' }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={styles.heroStatLabel}>Total Lent (All-Time)</Text>
+                <Text style={[styles.heroStatValue, { fontSize: 15 }]}>{formatCurrency(stats.principalDisbursed)}</Text>
               </View>
-              <View style={styles.heroStatSep} />
-              <View>
-                <Text style={styles.heroStatLabel}>Est. Profit</Text>
-                <Text style={styles.heroStatValue}>+{formatCurrency(stats.expectedProfit)}</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={styles.heroStatLabel}>Capital In Field</Text>
+                <Text style={[styles.heroStatValue, { fontSize: 15 }]}>{formatCurrency(stats.totalPending)}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={styles.heroStatLabel}>Realized Profit</Text>
+                <Text style={[styles.heroStatValue, { fontSize: 15, color: '#6ee7b7' }]}>+{formatCurrency(stats.realizedProfit)}</Text>
               </View>
             </View>
           </View>
         </Animated.View>
-
-        {/* Floating Quick Action Grid */}
-        <Animated.View 
-          entering={isPerformanceMode() ? FadeInDown : FadeInDown.delay(100).duration(500).springify()} 
-          style={[styles.actionGrid, settings.compactMode && { marginTop: -14, marginBottom: 10 }]}
-        >
-          <TouchableOpacity 
-            style={[styles.actionPillar, { backgroundColor: colors.surface, borderColor: colors.cardBorder }, settings.compactMode && { paddingVertical: 10 }]} 
-            activeOpacity={0.8}
-            onPress={() => {
-              triggerHapticImpact(ImpactStyle.Medium)
-              router.push('/(tabs)/customers/new')
-            }}
-          >
-            <View style={[styles.actionPillarIcon, { backgroundColor: `${colors.primary}15` }, settings.compactMode && { width: 36, height: 36, marginBottom: 4 }]}>
-              <UserPlus size={settings.compactMode ? 18 : 22} color={colors.primary} />
+        
+        {/* Jump Back In */}
+        {recentViews.length > 0 && (
+          <Animated.View entering={FadeInDown.delay(75).duration(500).springify()} style={{ marginBottom: 16 }}>
+            <View style={[styles.sectionHeader, { paddingHorizontal: 16, marginBottom: 12 }]}>
+              <Text style={[styles.sectionTitle, { color: colors.textSecondary, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 }]}>Jump Back In</Text>
             </View>
-            <Text style={[styles.actionPillarText, { color: colors.text }]}>Client</Text>
-          </TouchableOpacity>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}>
+              {recentViews.map((recent) => (
+                <TouchableOpacity
+                  key={recent.id}
+                  style={[styles.recentChip, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
+                  onPress={() => {
+                    triggerHapticImpact()
+                    router.push(`/(tabs)/customers/${recent.id}?name=${encodeURIComponent(recent.name)}`)
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.recentAvatar, { backgroundColor: `${colors.primary}15` }]}>
+                    <Text style={{ color: colors.primary, fontWeight: '800', fontSize: 13 }}>{recent.name.charAt(0).toUpperCase()}</Text>
+                  </View>
+                  <Text style={[styles.recentName, { color: colors.text }]} numberOfLines={1}>{recent.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </Animated.View>
+        )}
 
-          <TouchableOpacity 
-            style={[styles.actionPillar, { backgroundColor: colors.surface, borderColor: colors.cardBorder }, settings.compactMode && { paddingVertical: 10 }]} 
-            activeOpacity={0.8}
-            onPress={() => {
-              triggerHapticImpact(ImpactStyle.Medium)
-              if (stats.customerCount === 0) showAlert({title: 'No Customers', message: 'Please add a customer first.', type: 'warning'})
-              else router.push('/(tabs)/loans/new')
-            }}
-          >
-            <View style={[styles.actionPillarIcon, { backgroundColor: 'rgba(59, 130, 246, 0.15)' }, settings.compactMode && { width: 36, height: 36, marginBottom: 4 }]}>
-              <Briefcase size={settings.compactMode ? 18 : 22} color="#3b82f6" />
-            </View>
-            <Text style={[styles.actionPillarText, { color: colors.text }]}>Loan</Text>
-          </TouchableOpacity>
+        {/* Quick Actions */}
+        <Animated.View entering={isPerformanceMode() ? FadeInDown : FadeInDown.delay(100).duration(500).springify()} style={[styles.actionsContainer, settings.compactMode && { marginTop: 4, marginBottom: 10 }]}>
+          
+          <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
+            <TouchableOpacity 
+              style={[styles.gridActionBtn, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]} 
+              activeOpacity={0.8}
+              onPress={() => {
+                triggerHapticImpact(ImpactStyle.Heavy)
+                if (stats.activeLoanCount === 0) showAlert({title: 'No Active Loans', message: 'You need an active loan to record payment.', type: 'warning'})
+                else router.push('/(tabs)/payments/new')
+              }}
+            >
+              <View style={[styles.gridActionIconWrapper, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : 'rgba(16, 185, 129, 0.1)' }]}>
+                <Receipt size={22} color="#10b981" />
+              </View>
+              <Text style={[styles.gridActionText, { color: colors.text }]}>Collect</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={[styles.actionPillar, { backgroundColor: colors.surface, borderColor: colors.cardBorder }, settings.compactMode && { paddingVertical: 10 }]} 
-            activeOpacity={0.8}
-            onPress={() => {
-              triggerHapticImpact(ImpactStyle.Medium)
-              if (stats.activeLoanCount === 0) showAlert({title: 'No Active Loans', message: 'You need an active loan to record payment.', type: 'warning'})
-              else router.push('/(tabs)/payments/new')
-            }}
-          >
-            <View style={[styles.actionPillarIcon, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }, settings.compactMode && { width: 36, height: 36, marginBottom: 4 }]}>
-              <Receipt size={settings.compactMode ? 18 : 22} color="#10b981" />
-            </View>
-            <Text style={[styles.actionPillarText, { color: colors.text }]}>Pay</Text>
-          </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.gridActionBtn, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]} 
+              activeOpacity={0.8}
+              onPress={() => {
+                triggerHapticImpact(ImpactStyle.Medium)
+                if (stats.customerCount === 0) showAlert({title: 'No Customers', message: 'Please add a customer first.', type: 'warning'})
+                else router.push('/(tabs)/loans/new')
+              }}
+            >
+              <View style={[styles.gridActionIconWrapper, { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : 'rgba(59, 130, 246, 0.1)' }]}>
+                <Briefcase size={22} color="#3b82f6" />
+              </View>
+              <Text style={[styles.gridActionText, { color: colors.text }]}>New Loan</Text>
+            </TouchableOpacity>
+          </View>
 
-          <TouchableOpacity 
-            style={[styles.actionPillar, { backgroundColor: colors.surface, borderColor: colors.cardBorder }, settings.compactMode && { paddingVertical: 10 }]} 
-            activeOpacity={0.8}
-            onPress={() => {
-              triggerHapticImpact(ImpactStyle.Medium)
-              router.push('/calculator')
-            }}
-          >
-            <View style={[styles.actionPillarIcon, { backgroundColor: 'rgba(139, 92, 246, 0.15)' }, settings.compactMode && { width: 36, height: 36, marginBottom: 4 }]}>
-              <Calculator size={settings.compactMode ? 18 : 22} color="#8b5cf6" />
-            </View>
-            <Text style={[styles.actionPillarText, { color: colors.text }]}>Quotes</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <TouchableOpacity 
+              style={[styles.gridActionBtn, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]} 
+              activeOpacity={0.8}
+              onPress={() => {
+                triggerHapticImpact(ImpactStyle.Medium)
+                router.push('/(tabs)/customers/new')
+              }}
+            >
+              <View style={[styles.gridActionIconWrapper, { backgroundColor: isDark ? 'rgba(139, 92, 246, 0.15)' : 'rgba(139, 92, 246, 0.1)' }]}>
+                <UserPlus size={22} color="#8b5cf6" />
+              </View>
+              <Text style={[styles.gridActionText, { color: colors.text }]}>New Client</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.gridActionBtn, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]} 
+              activeOpacity={0.8}
+              onPress={() => {
+                triggerHapticImpact(ImpactStyle.Medium)
+                showAlert({ title: 'Coming Soon', message: 'Quotes module is under development.', type: 'info' })
+              }}
+            >
+              <View style={[styles.gridActionIconWrapper, { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : 'rgba(245, 158, 11, 0.1)' }]}>
+                <Calculator size={22} color="#f59e0b" />
+              </View>
+              <Text style={[styles.gridActionText, { color: colors.text }]}>Quotes</Text>
+            </TouchableOpacity>
+          </View>
         </Animated.View>
 
         {/* Pulse Alert for Red-Zone Overdue */}
@@ -426,6 +479,7 @@ export default function DashboardScreen() {
           </View>
           
           <ScrollView 
+            key={timeRange}
             horizontal 
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.chartWrapper}
@@ -443,27 +497,21 @@ export default function DashboardScreen() {
                   <ActivityIndicator color="#3b82f6" />
                 </View>
               )}
-              <LineChart
+              <StackedBarChart
                 data={{
-                  labels: contextChartData.labels,
-                  datasets: [
-                    { 
-                      data: isChartEmpty ? [10, 25, 45, 30, 55, 40, 60] : contextChartData.inData,
-                      color: (opacity = 1) => `rgba(16, 185, 129, ${isChartEmpty ? 0.3 : 1})`, // Neon Green
-                      strokeWidth: 4
-                    },
-                    { 
-                      data: isChartEmpty ? [60, 40, 55, 30, 45, 25, 10] : contextChartData.outData,
-                      color: (opacity = 1) => `rgba(239, 68, 68, ${isChartEmpty ? 0.3 : 1})`, // Neon Red
-                      strokeWidth: 4
-                    }
-                  ],
+                  labels: contextChartData.labels.length > 0 ? contextChartData.labels : ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
+                  legend: [],
+                  data: isChartEmpty 
+                    ? [ [10, 60], [25, 40], [45, 55], [30, 30], [55, 45], [40, 25], [60, 10] ]
+                    : contextChartData.inData.map((val, i) => [val, contextChartData.outData[i] || 0]),
+                  barColors: [
+                    `rgba(16, 185, 129, ${isChartEmpty ? 0.3 : 1})`, // Neon Green
+                    `rgba(239, 68, 68, ${isChartEmpty ? 0.3 : 1})`   // Neon Red
+                  ]
                 }}
                 width={Math.max(screenWidth - 64, contextChartData.inData.length * (timeRange === '7d' ? 45 : 35))}
                 height={200}
-                withInnerLines={true}
-                withOuterLines={false}
-                withDots={!isChartEmpty}
+                hideLegend={true}
                 chartConfig={{
                   backgroundColor: isDark ? '#0f172a' : colors.surface,
                   backgroundGradientFrom: isDark ? '#0f172a' : colors.surface,
@@ -477,22 +525,7 @@ export default function DashboardScreen() {
                     fontSize: 10,
                     fontWeight: '600'
                   },
-                  fillShadowGradientFromOpacity: 0,
-                  fillShadowGradientToOpacity: 0,
-                  propsForDots: {
-                    r: settings.compactMode ? "4" : "5",
-                    strokeWidth: "2",
-                    stroke: isDark ? "#0f172a" : "#fff" 
-                  }
-                }}
-                bezier
-                onDataPointClick={({ value, index }) => {
-                  triggerHapticImpact()
-                  setSelectedPoint({
-                    label: contextChartData.labels.length > 0 ? contextChartData.labels[index] || "Date" : "Date",
-                    in: contextChartData.inData[index] || 0,
-                    out: contextChartData.outData[index] || 0
-                  })
+                  barPercentage: 0.6,
                 }}
                 style={styles.chart}
               />
@@ -665,11 +698,16 @@ const styles = StyleSheet.create({
   heroStatLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: '600', marginBottom: 2 },
   heroStatValue: { color: '#fff', fontSize: 16, fontWeight: '800' },
 
-  // Action Grid
-  actionGrid: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, marginTop: -20, marginBottom: 16, paddingHorizontal: 10, zIndex: 10 },
-  actionPillar: { flex: 1, backgroundColor: '#fff', paddingVertical: 14, borderRadius: 16, alignItems: 'center', borderWidth: 1, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6 },
-  actionPillarIcon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-  actionPillarText: { fontSize: 13, fontWeight: '700' },
+  // Quick Actions Grid
+  actionsContainer: { marginTop: 4, marginBottom: 16, paddingHorizontal: 12, zIndex: 10 },
+  gridActionBtn: { flex: 1, paddingVertical: 14, paddingHorizontal: 16, borderRadius: 20, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 12, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6 },
+  gridActionIconWrapper: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  gridActionText: { fontSize: 15, fontWeight: '700', letterSpacing: -0.2 },
+  
+  // Recent Views
+  recentChip: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 8, paddingRight: 16, borderRadius: 20, borderWidth: 1 },
+  recentAvatar: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  recentName: { fontSize: 14, fontWeight: '600' },
 
   // Pulse Alert
   pulseCard: { backgroundColor: '#ef4444', borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },

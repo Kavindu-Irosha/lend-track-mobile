@@ -79,8 +79,15 @@ export default function LoansScreen() {
         ) || 0
         const remaining = loanTotal - paid
         let status = 'Active'
-        if (remaining <= 0) status = 'Completed'
-        else if (new Date(loan.due_date) < new Date() && remaining > 0) status = 'Overdue'
+        let daysOverdue = 0
+        if (remaining <= 0) {
+          status = 'Completed'
+        } else if (new Date(loan.due_date) < new Date() && remaining > 0) {
+          status = 'Overdue'
+          const diffTime = Math.abs(new Date().getTime() - new Date(loan.due_date).getTime())
+          daysOverdue = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+        }
+        
         return {
           ...loan,
           customerName: loan.customers?.name || 'Unknown',
@@ -89,6 +96,7 @@ export default function LoansScreen() {
           paid,
           remaining,
           computedStatus: status,
+          daysOverdue,
         }
       })
 
@@ -374,6 +382,7 @@ export default function LoansScreen() {
               remaining={item.remaining}
               status={item.computedStatus}
               dueDate={item.due_date}
+              daysOverdue={item.daysOverdue}
               onPress={() => router.push(`/(tabs)/customers/${item.customerId}`)}
               onPay={item.remaining > 0 ? () => router.push(`/(tabs)/payments/new?loan_id=${item.id}`) : undefined}
               onDelete={() => handleDeleteLoan(item.id)}

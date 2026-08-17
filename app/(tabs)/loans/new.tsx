@@ -9,6 +9,7 @@ import {
   ScrollView,
   FlatList,
   TextInput,
+  Modal,
 } from 'react-native'
 import Animated, {
   FadeInRight,
@@ -56,7 +57,7 @@ import { format } from 'date-fns'
 import { useAlert } from '@/src/context/AlertContext'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { calculateInterestAmount, calculateDueDate, InterestType, PenaltyType, calculateEMI } from '@/src/lib/financial'
-import { formatCurrency, triggerHapticImpact, triggerHapticNotification, ImpactStyle, NotificationType } from '@/src/lib/utils'
+import { formatCurrency, triggerHapticImpact, triggerHapticNotification, ImpactStyle, NotificationType, escapeHtml } from '@/src/lib/utils'
 import { useSettings } from '@/src/context/SettingsContext'
 import * as Print from 'expo-print'
 import * as Sharing from 'expo-sharing'
@@ -198,7 +199,7 @@ export default function NewLoanScreen() {
 
     setSaving(true)
     try {
-      const { error: dbError } = await supabase.from('loans').insert({
+      const { data: insertedLoan, error: dbError } = await supabase.from('loans').insert({
         user_id: user?.id,
         customer_id: customerId,
         amount: parseFloat(amount),
@@ -214,13 +215,13 @@ export default function NewLoanScreen() {
         penalty_value: parseFloat(penaltyValue) || 0,
         collateral_details: collateralDetails.trim() || null,
         purpose: purpose.trim() || null,
-      })
+      }).select('id').single()
 
       if (dbError) throw dbError
 
       triggerHapticNotification(NotificationType.Success)
       setSuccessData({
-        id: Math.random().toString(36).substring(2, 9).toUpperCase(),
+        id: insertedLoan.id,
         customer: selectedCustomer?.name || 'Customer',
         amount: parseFloat(amount)
       })
@@ -267,7 +268,7 @@ export default function NewLoanScreen() {
           <div class="info-grid">
             <div class="info-box">
               <h3>Borrower Information</h3>
-              <p>${successData.customer}</p>
+              <p>${escapeHtml(successData.customer)}</p>
             </div>
             <div class="info-box" style="text-align: right;">
               <h3>Reference ID</h3>
@@ -520,13 +521,13 @@ export default function NewLoanScreen() {
 
                   {/* Principal Amount */}
                   <Animated.View entering={FadeInDown.delay(80).duration(300)}>
-                    <FormInput label="Principal Amount (Rs)" value={amount} onChangeText={setAmount} keyboardType="decimal-pad" />
+                    <FormInput label="Principal Amount (Rs)" value={amount} onChangeText={setAmount} keyboardType="decimal-pad" maxLength={15} />
                   </Animated.View>
 
                   {/* Interest Rate + Type */}
                   <View style={styles.row}>
                     <View style={{ flex: 1.2 }}>
-                      <FormInput label={`Rate (${interestType === 'flat' ? 'Rs' : '%'})`} value={interestValue} onChangeText={setInterestValue} keyboardType="decimal-pad" />
+                      <FormInput label={`Rate (${interestType === 'flat' ? 'Rs' : '%'})`} value={interestValue} onChangeText={setInterestValue} keyboardType="decimal-pad" maxLength={10} />
                     </View>
                     <View style={{ flex: 1, marginLeft: 12 }}>
                       <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Type</Text>
@@ -544,7 +545,7 @@ export default function NewLoanScreen() {
                   {/* Tenure */}
                   {!isInterestOnly && (
                     <Animated.View entering={FadeInDown.delay(100).duration(300)}>
-                      <FormInput label="Tenure (Installments)" value={tenure} onChangeText={setTenure} keyboardType="number-pad" />
+                      <FormInput label="Tenure (Installments)" value={tenure} onChangeText={setTenure} keyboardType="number-pad" maxLength={4} />
                     </Animated.View>
                   )}
 
@@ -558,17 +559,39 @@ export default function NewLoanScreen() {
                       <CalendarIcon size={18} color={colors.primary} />
                       <Text style={[styles.dateSelectorText, { color: colors.text }]}>{format(startDate, 'MMM dd, yyyy')}</Text>
                     </TouchableOpacity>
-                    {showStartDatePicker && (
-                      <DateTimePicker
-                        value={startDate}
-                        mode="date"
-                        display="default"
-                        maximumDate={new Date()}
-                        onChange={(event, date) => {
-                          setShowStartDatePicker(Platform.OS === 'ios')
-                          if (date) setStartDate(date)
-                        }}
-                      />
+                    {Platform.OS === 'ios' ? (
+                      <Modal visible={showStartDatePicker} transparent animationType="slide">
+                        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                          <View style={{ backgroundColor: colors.surface, padding: 16, borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
+                            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 8 }}>
+                              <TouchableOpacity onPress={() => setShowStartDatePicker(false)} style={{ padding: 8 }}>
+                                <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 16 }}>Done</Text>
+                              </TouchableOpacity>
+                            </View>
+                            <DateTimePicker
+                              value={startDate}
+                              mode="date"
+                              display="spinner"
+                              textColor={colors.text}
+                              onChange={(event, date) => {
+                                if (date) setStartDate(date)
+                              }}
+                            />
+                          </View>
+                        </View>
+                      </Modal>
+                    ) : (
+                      showStartDatePicker && (
+                        <DateTimePicker
+                          value={startDate}
+                          mode="date"
+                          display="default"
+                          onChange={(event, date) => {
+                            setShowStartDatePicker(false)
+                            if (date) setStartDate(date)
+                          }}
+                        />
+                      )
                     )}
                   </Animated.View>
 
@@ -605,7 +628,7 @@ export default function NewLoanScreen() {
                           </View>
                         </View>
                         <View style={{ flex: 1, marginLeft: 12 }}>
-                          <FormInput label="Price / %" value={penaltyValue} onChangeText={setPenaltyValue} keyboardType="decimal-pad" />
+                          <FormInput label="Price / %" value={penaltyValue} onChangeText={setPenaltyValue} keyboardType="decimal-pad" maxLength={10} />
                         </View>
                       </View>
                     </Animated.View>
@@ -614,7 +637,7 @@ export default function NewLoanScreen() {
                   {/* Collateral */}
                   <View style={[styles.sectionDivider, { backgroundColor: colors.border }]} />
                   <Animated.View entering={FadeInDown.duration(300)} layout={Layout.duration(200)}>
-                    <FormInput label="Collateral / Asset Description" value={collateralDetails} onChangeText={setCollateralDetails} multiline />
+                    <FormInput label="Collateral / Asset Description" value={collateralDetails} onChangeText={setCollateralDetails} multiline maxLength={500} />
                   </Animated.View>
                 </Animated.View>
               )}
@@ -683,7 +706,7 @@ export default function NewLoanScreen() {
 
                   {/* Admin Note */}
                   <Animated.View entering={FadeInDown.delay(100).duration(300)} style={{ marginTop: 20 }}>
-                    <FormInput label="Administrative Note (Optional)" value={purpose} onChangeText={setPurpose} placeholder="Internal tracking details..." multiline />
+                    <FormInput label="Administrative Note (Optional)" value={purpose} onChangeText={setPurpose} placeholder="Internal tracking details..." multiline maxLength={500} />
                   </Animated.View>
 
                   {/* Security Notice */}

@@ -143,3 +143,16 @@ export function formatPhoneSriLanka(phone: string | null | undefined): string {
 
   return phone
 }
+
+export function escapeHtml(unsafe: string): string {
+  return (unsafe || '').replace(/[&<"'>]/g, function (match) {
+    switch (match) {
+      case '&': return '&amp;';
+      case '<': return '&lt;';
+      case '>': return '&gt;';
+      case '"': return '&quot;';
+      case "'": return '&#39;';
+      default: return match;
+    }
+  });
+}

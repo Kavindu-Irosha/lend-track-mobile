@@ -40,10 +40,12 @@ export default function NewCustomerScreen() {
   const [idImageFrontUri, setIdImageFrontUri] = useState<string | null>(null)
   const [idImageFrontBase64, setIdImageFrontBase64] = useState<string | null>(null)
   const [existingIdFrontUrl, setExistingIdFrontUrl] = useState<string | null>(null)
+  const [existingIdFrontDisplayUrl, setExistingIdFrontDisplayUrl] = useState<string | null>(null)
 
   const [idImageBackUri, setIdImageBackUri] = useState<string | null>(null)
   const [idImageBackBase64, setIdImageBackBase64] = useState<string | null>(null)
   const [existingIdBackUrl, setExistingIdBackUrl] = useState<string | null>(null)
+  const [existingIdBackDisplayUrl, setExistingIdBackDisplayUrl] = useState<string | null>(null)
 
   const [loading, setLoading] = useState(isEditMode)
   const [saving, setSaving] = useState(false)
@@ -71,8 +73,17 @@ export default function NewCustomerScreen() {
         setNicNumber(data.nic_number || '')
         setEmergencyPhone(data.emergency_phone || '')
         setNotes(data.notes || '')
-        setExistingIdFrontUrl(data.id_card_url || null)
-        setExistingIdBackUrl(data.id_card_back_url || null)
+        if (data.id_card_url) {
+          setExistingIdFrontUrl(data.id_card_url)
+          const { data: sUrl } = await supabase.storage.from('customer_ids').createSignedUrl(data.id_card_url, 3600)
+          setExistingIdFrontDisplayUrl(sUrl?.signedUrl || null)
+        }
+        
+        if (data.id_card_back_url) {
+          setExistingIdBackUrl(data.id_card_back_url)
+          const { data: sUrl } = await supabase.storage.from('customer_ids').createSignedUrl(data.id_card_back_url, 3600)
+          setExistingIdBackDisplayUrl(sUrl?.signedUrl || null)
+        }
       }
     } catch (err: any) {
       showAlert({
@@ -248,6 +259,7 @@ export default function NewCustomerScreen() {
                 value={name}
                 onChangeText={setName}
                 autoCapitalize="words"
+                maxLength={100}
               />
               <View style={styles.row}>
                 <View style={styles.halfField}>
@@ -257,6 +269,7 @@ export default function NewCustomerScreen() {
                     value={phone}
                     onChangeText={setPhone}
                     keyboardType="phone-pad"
+                    maxLength={20}
                   />
                 </View>
                 <View style={styles.halfField}>
@@ -265,6 +278,7 @@ export default function NewCustomerScreen() {
                     placeholder="199012345678"
                     value={nicNumber}
                     onChangeText={setNicNumber}
+                    maxLength={20}
                   />
                 </View>
               </View>
@@ -274,6 +288,7 @@ export default function NewCustomerScreen() {
                 value={emergencyPhone}
                 onChangeText={setEmergencyPhone}
                 keyboardType="phone-pad"
+                maxLength={20}
               />
             </View>
           </Animated.View>
@@ -305,12 +320,12 @@ export default function NewCustomerScreen() {
                   {hasFrontImage ? (
                     <View style={[styles.idPreview, { borderColor: colors.cardBorder }]}>
                       <Image
-                        source={{ uri: idImageFrontUri || (existingIdFrontUrl ? 'https://via.placeholder.com/150?text=Stored+ID' : '') }}
+                        source={{ uri: idImageFrontUri || (existingIdFrontDisplayUrl ? existingIdFrontDisplayUrl : '') }}
                         style={styles.idImage}
                       />
                       <TouchableOpacity
                         style={styles.idRemove}
-                        onPress={() => { setIdImageFrontUri(null); setIdImageFrontBase64(null); setExistingIdFrontUrl(null); }}
+                        onPress={() => { setIdImageFrontUri(null); setIdImageFrontBase64(null); setExistingIdFrontUrl(null); setExistingIdFrontDisplayUrl(null); }}
                       >
                         <X size={14} color="#fff" />
                       </TouchableOpacity>
@@ -338,12 +353,12 @@ export default function NewCustomerScreen() {
                   {hasBackImage ? (
                     <View style={[styles.idPreview, { borderColor: colors.cardBorder }]}>
                       <Image
-                        source={{ uri: idImageBackUri || (existingIdBackUrl ? 'https://via.placeholder.com/150?text=Stored+ID' : '') }}
+                        source={{ uri: idImageBackUri || (existingIdBackDisplayUrl ? existingIdBackDisplayUrl : '') }}
                         style={styles.idImage}
                       />
                       <TouchableOpacity
                         style={styles.idRemove}
-                        onPress={() => { setIdImageBackUri(null); setIdImageBackBase64(null); setExistingIdBackUrl(null); }}
+                        onPress={() => { setIdImageBackUri(null); setIdImageBackBase64(null); setExistingIdBackUrl(null); setExistingIdBackDisplayUrl(null); }}
                       >
                         <X size={14} color="#fff" />
                       </TouchableOpacity>
@@ -386,6 +401,7 @@ export default function NewCustomerScreen() {
                 multiline
                 numberOfLines={3}
                 style={{ minHeight: 80, textAlignVertical: 'top' }}
+                maxLength={500}
               />
             </View>
           </Animated.View>

@@ -13,6 +13,9 @@ interface DashboardStats {
   customerCount: number
   activeLoanCount: number
   completedLoanCount: number
+  expectedToday: number
+  realizedProfit: number
+  dueTodayCount: number
 }
 
 interface DashboardContextType {
@@ -24,6 +27,7 @@ interface DashboardContextType {
   loading: boolean
   refreshing: boolean
   fetchDashboardData: (force?: boolean) => Promise<void>
+  fetchChartData: (rangeDays?: number) => Promise<void>
   lastUpdated: number | null
 }
 
@@ -44,7 +48,10 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     totalCredits: 0,
     customerCount: 0,
     activeLoanCount: 0,
-    completedLoanCount: 0
+    completedLoanCount: 0,
+    expectedToday: 0,
+    realizedProfit: 0,
+    dueTodayCount: 0
   })
   const [recentPayments, setRecentPayments] = useState<Payment[]>([])
   const [topPending, setTopPending] = useState<(LoanWithRelations & { remaining: number, customerName: string, customerId: string })[]>([])
@@ -76,21 +83,35 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       // Calculate stats
       let totalGiven = 0, totalCollected = 0, totalPending = 0, principalDisbursed = 0, expectedProfit = 0, totalCredits = 0
       let activeCount = 0, completedCount = 0
+      let expectedToday = 0, realizedProfit = 0, dueTodayCount = 0
+      const todayStr = new Date().toISOString().split('T')[0]
       const pendingList: (LoanWithRelations & { remaining: number, customerName: string, customerId: string })[] = []
 
-      loans.forEach((loan) => {
-        principalDisbursed += Number(loan.amount)
+      ;(loans || []).forEach((loan) => {
+        const principal = Number(loan.amount)
+        principalDisbursed += principal
         expectedProfit += Number(loan.interest)
-        const loanTotal = Number(loan.amount) + Number(loan.interest)
+        const loanTotal = principal + Number(loan.interest)
         totalGiven += loanTotal
         const paid = loan.payments?.reduce((s: number, p) => s + Number(p.amount), 0) || 0
         totalCollected += paid
         const remaining = loanTotal - paid
 
+        // Calculate realized profit per loan
+        if (paid > principal) {
+          realizedProfit += (paid - principal)
+        }
+
         if (remaining > 0) {
           totalPending += remaining
           activeCount++
           pendingList.push({ ...loan, remaining, customerName: loan.customers?.name || 'Unknown', customerId: loan.customers?.id || loan.customer_id })
+          
+          // Check if due today
+          if (loan.due_date && loan.due_date.split('T')[0] === todayStr) {
+            expectedToday += remaining
+            dueTodayCount++
+          }
         } else {
           completedCount++
           if (remaining < 0) totalCredits += Math.abs(remaining)
@@ -101,14 +122,14 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
       setStats({
         totalGiven, totalCollected, totalPending, principalDisbursed, expectedProfit, totalCredits,
-        customerCount, activeLoanCount: activeCount, completedLoanCount: completedCount
+        customerCount, activeLoanCount: activeCount, completedLoanCount: completedCount,
+        expectedToday, realizedProfit, dueTodayCount
       })
       setRecentPayments(payments)
       setTopPending(pendingList.slice(0, 5))
       setLastUpdated(now)
-      
-      // Chart Logic (Default 1M)
-      await fetchChartData()
+      // Chart data is now managed explicitly by the UI component using the selected timeRange
+
     } catch (err) {
       console.error('Context Fetch Error:', err)
     } finally {
@@ -117,7 +138,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     }
   }, [lastUpdated])
 
-  const fetchChartData = async (rangeDays = 30) => {
+  const fetchChartData = useCallback(async (rangeDays = 30) => {
     const startDate = new Date()
     startDate.setDate(startDate.getDate() - (rangeDays - 1))
     startDate.setHours(0, 0, 0, 0)
@@ -162,12 +183,12 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
     setChartData({ labels: displayLabels, inData: inValues, outData: outValues })
     setIsChartEmpty(!hasData)
-  }
+  }, [])
 
   return (
     <DashboardContext.Provider value={{
       stats, recentPayments, topPending, chartData, isChartEmpty, loading, refreshing,
-      fetchDashboardData, lastUpdated
+      fetchDashboardData, fetchChartData, lastUpdated
     }}>
       {children}
     </DashboardContext.Provider>

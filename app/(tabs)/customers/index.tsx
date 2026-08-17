@@ -42,7 +42,13 @@ export default function CustomersScreen() {
     return () => clearTimeout(timer)
   }, [query])
 
-  const fetchCustomers = useCallback(async () => {
+  const lastFetched = useRef(0)
+
+  const fetchCustomers = useCallback(async (force = false) => {
+    const now = Date.now()
+    if (!force && now - lastFetched.current < 30000 && !debouncedQuery.trim()) {
+      return
+    }
     try {
       let q = supabase
         .from('customers')
@@ -80,6 +86,7 @@ export default function CustomersScreen() {
       })
 
       setAllCustomers(processed)
+      lastFetched.current = Date.now()
     } catch (err) {
       console.error(err)
     } finally {
@@ -116,7 +123,7 @@ export default function CustomersScreen() {
 
   const onRefresh = () => {
     setRefreshing(true)
-    fetchCustomers()
+    fetchCustomers(true)
   }
 
   if (loading) return <LoadingSpinner message="Loading customers..." />

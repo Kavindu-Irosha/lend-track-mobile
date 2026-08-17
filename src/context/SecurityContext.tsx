@@ -3,7 +3,7 @@ import * as LocalAuthentication from 'expo-local-authentication'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as SecureStore from 'expo-secure-store'
 import { supabase } from '@/src/lib/supabase'
-import { triggerHapticImpact, triggerHapticNotification } from '@/src/lib/utils'
+import { triggerHapticImpact, triggerHapticNotification, NotificationType } from '@/src/lib/utils'
 
 interface SecurityContextType {
   isBiometricEnabled: boolean
@@ -13,14 +13,11 @@ interface SecurityContextType {
   hasHardware: boolean
   isEnrolled: boolean
   loading: boolean
-  saveCredentials: (email: string, pass: string) => Promise<void>
-  clearCredentials: () => Promise<void>
 }
 
 const SecurityContext = createContext<SecurityContextType | undefined>(undefined)
 
 const STORAGE_KEY = '@lendtrack_biometric_enabled'
-const CRED_KEY = 'lendtrack_secure_creds'
 
 export function SecurityProvider({ children }: { children: React.ReactNode }) {
   const [isBiometricEnabled, setIsBiometricEnabled] = useState(false)
@@ -66,26 +63,10 @@ export function SecurityProvider({ children }: { children: React.ReactNode }) {
       }
     } else {
       await AsyncStorage.setItem(STORAGE_KEY, 'false')
-      await SecureStore.deleteItemAsync(CRED_KEY)
       setIsBiometricEnabled(false)
       setIsAuthenticated(true)
       triggerHapticNotification()
     }
-  }
-
-  const saveCredentials = async (email: string, pass: string) => {
-    if (isBiometricEnabled) {
-      await SecureStore.setItemAsync(CRED_KEY, JSON.stringify({ email, pass }), {
-        // We omit requireAuthentication because Android BiometricPrompt frequently fails 
-        // to generate the hardware cipher synchronously when trying to write to Keystore.
-        // Data is still fundamentally encrypted at REST securely via AES-256.
-        keychainAccessible: SecureStore.WHEN_PASSCODE_SET_THIS_DEVICE_ONLY
-      })
-    }
-  }
-
-  const clearCredentials = async () => {
-    await SecureStore.deleteItemAsync(CRED_KEY)
   }
 
   const authenticate = async () => {
@@ -97,25 +78,11 @@ export function SecurityProvider({ children }: { children: React.ReactNode }) {
       })
       
       if (result.success) {
-        // Handle Auto-Login
-        // Now we can read the credentials because we've just passed biometrics
-        const stored = await SecureStore.getItemAsync(CRED_KEY)
-        if (stored) {
-          try {
-            const { email, pass } = JSON.parse(stored)
-            const { data } = await supabase.auth.getSession()
-            if (!data.session) {
-              await supabase.auth.signInWithPassword({ email, password: pass })
-            }
-          } catch (e) {
-            console.error('Auto-login failed:', e)
-          }
-        }
         setIsAuthenticated(true)
         triggerHapticNotification()
         return true
       }
-      triggerHapticNotification('error')
+      triggerHapticNotification(NotificationType.Error)
       return false
     } catch (e) {
       console.error('Auth Error:', e)
@@ -132,9 +99,7 @@ export function SecurityProvider({ children }: { children: React.ReactNode }) {
         authenticate, 
         hasHardware, 
         isEnrolled,
-        loading,
-        saveCredentials,
-        clearCredentials 
+        loading
       }}
     >
       {children}

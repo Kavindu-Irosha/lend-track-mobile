@@ -10,6 +10,7 @@ import {
 } from 'react-native'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import { useFocusEffect, useRouter } from 'expo-router'
+import { useAlert } from '@/src/context/AlertContext'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTheme } from '@/src/context/ThemeContext'
 import { supabase } from '@/src/lib/supabase'
@@ -31,6 +32,7 @@ import { getWhatsAppReminder } from '@/src/lib/financial'
 export default function AlertsScreen() {
   const { colors, isDark } = useTheme()
   const router = useRouter()
+  const { showAlert } = useAlert()
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [alerts, setAlerts] = useState<any[]>([])
@@ -121,11 +123,21 @@ export default function AlertsScreen() {
   ) => {
     if (!phone) return
     triggerHapticImpact(ImpactStyle.Medium)
-    const cleanPhone = phone.replace(/\D/g, '')
+    
+    const cleanPhone = phone.replace(/[^\d+]/g, '')
+    if (cleanPhone.replace('+', '').length < 9) {
+      showAlert({ title: 'Invalid Phone', message: 'Phone number is too short to be valid.', type: 'error' })
+      return
+    }
+
+    const finalPhone = cleanPhone.startsWith('0') && cleanPhone.length === 10 
+      ? `94${cleanPhone.slice(1)}` 
+      : cleanPhone.replace('+', '')
+
     const message = encodeURIComponent(
       getWhatsAppReminder(name, amount, dueDate, isOverdue, penalty)
     )
-    Linking.openURL(`https://wa.me/${cleanPhone}?text=${message}`)
+    Linking.openURL(`https://wa.me/${finalPhone}?text=${message}`)
   }
 
   // Stats

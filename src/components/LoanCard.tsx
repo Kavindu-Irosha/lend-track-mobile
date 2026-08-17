@@ -17,6 +17,7 @@ interface LoanCardProps {
   onPress?: () => void
   onPay?: () => void
   onDelete?: () => void
+  daysOverdue?: number
 }
 
 export default function LoanCard({
@@ -30,6 +31,7 @@ export default function LoanCard({
   onPress,
   onPay,
   onDelete,
+  daysOverdue,
 }: LoanCardProps) {
   const { colors } = useTheme()
   const { settings } = useSettings()
@@ -39,12 +41,26 @@ export default function LoanCard({
   const isOverdue = status === 'Overdue'
   const isCompleted = status === 'Completed'
 
-  const statusColor =
+  let displayStatus = status
+  let statusColor =
     isCompleted
       ? { bg: colors.successBg, text: colors.success }
       : isOverdue
       ? { bg: colors.errorBg, text: colors.error }
       : { bg: colors.primaryBg, text: colors.primary }
+
+  if (isOverdue && daysOverdue !== undefined && daysOverdue > 0) {
+    if (daysOverdue <= 7) {
+      displayStatus = 'Slightly Late'
+      statusColor = { bg: 'rgba(245, 158, 11, 0.15)', text: '#f59e0b' } // Amber
+    } else if (daysOverdue <= 30) {
+      displayStatus = 'High Risk'
+      statusColor = { bg: 'rgba(239, 68, 68, 0.15)', text: '#ef4444' } // Red
+    } else {
+      displayStatus = 'Critical'
+      statusColor = { bg: 'rgba(153, 27, 27, 0.15)', text: '#991b1b' } // Dark Red
+    }
+  }
 
   return (
     <Animated.View
@@ -95,7 +111,7 @@ export default function LoanCard({
                 </TouchableOpacity>
               )}
               <View style={[styles.badge, { backgroundColor: statusColor.bg }]}>
-                <Text style={[styles.badgeText, { color: statusColor.text }]}>{status}</Text>
+                <Text style={[styles.badgeText, { color: statusColor.text }]}>{displayStatus}</Text>
               </View>
             </View>
           </View>
@@ -104,25 +120,23 @@ export default function LoanCard({
           </Text>
         </View>
 
-        {!compact && (
-          <View style={styles.progressSection}>
-            <View style={styles.progressHeader}>
-              <Text style={[styles.progressLabel, { color: colors.textSecondary }]}>Repayment Progress</Text>
-              <Text style={[styles.progressPercent, { color: colors.primary }]}>{Math.round(progress * 100)}%</Text>
-            </View>
-            <View style={[styles.progressBarBg, { backgroundColor: colors.border }]}>
-              <View 
-                style={[
-                  styles.progressBarFill, 
-                  { 
-                    backgroundColor: isCompleted ? colors.success : colors.primary, 
-                    width: `${progress * 100}%` 
-                  }
-                ]} 
-              />
-            </View>
+        <View style={[styles.progressSection, compact && { marginBottom: 12 }]}>
+          <View style={[styles.progressHeader, compact && { marginBottom: 6 }]}>
+            <Text style={[styles.progressLabel, { color: colors.textSecondary }, compact && { fontSize: 10 }]}>Repayment Progress</Text>
+            <Text style={[styles.progressPercent, { color: colors.primary }, compact && { fontSize: 11 }]}>{Math.round(progress * 100)}%</Text>
           </View>
-        )}
+          <View style={[styles.progressBarBg, { backgroundColor: colors.border }, compact && { height: 4 }]}>
+            <View 
+              style={[
+                styles.progressBarFill, 
+                { 
+                  backgroundColor: isCompleted ? colors.success : (isOverdue ? statusColor.text : colors.primary), 
+                  width: `${progress * 100}%` 
+                }
+              ]} 
+            />
+          </View>
+        </View>
 
         <View style={[styles.detailsGrid, compact && { paddingTop: 8, marginTop: 4 }]}>
           <View style={styles.detailItem}>

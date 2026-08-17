@@ -3,6 +3,7 @@ import { View, Text, ScrollView, StyleSheet, TouchableOpacity, RefreshControl, A
 import Animated, { FadeInDown, useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing } from 'react-native-reanimated'
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTheme } from '@/src/context/ThemeContext'
 import { supabase } from '@/src/lib/supabase'
 import { formatCurrency, formatPhoneSriLanka, maskPhone, triggerHapticImpact, triggerHapticNotification, ImpactStyle, NotificationType } from '@/src/lib/utils'
@@ -34,7 +35,7 @@ import { generateCustomerStatement } from '@/src/lib/reports'
 import { useAlert } from '@/src/context/AlertContext'
 import { useSettings } from '@/src/context/SettingsContext'
 
-type LoanFilter = 'all' | 'completed' | 'overdue'
+type LoanFilter = 'all' | 'active' | 'completed' | 'overdue'
 
 const CustomLoadingBar = ({ color, height = 4 }: { color: string, height?: number }) => {
   const progress = useSharedValue(0)
@@ -73,7 +74,8 @@ export default function CustomerDetailScreen() {
   const [idImageFrontUrl, setIdImageFrontUrl] = useState<string | null>(null)
   const [idImageBackUrl, setIdImageBackUrl] = useState<string | null>(null)
   const [viewIdModal, setViewIdModal] = useState<string | null>(null)
-  const [isThumbLoading, setIsThumbLoading] = useState(true)
+  const [isThumbFrontLoading, setIsThumbFrontLoading] = useState(true)
+  const [isThumbBackLoading, setIsThumbBackLoading] = useState(true)
   const [isModalImageLoading, setIsModalImageLoading] = useState(true)
   const [loans, setLoans] = useState<any[]>([])
   const [totals, setTotals] = useState({
@@ -105,6 +107,19 @@ export default function CustomerDetailScreen() {
       }
 
       setCustomer(customerData)
+
+      // Save to recent views
+      try {
+        const RECENT_KEY = '@lendtrack_recent_views'
+        const stored = await AsyncStorage.getItem(RECENT_KEY)
+        let recent = stored ? JSON.parse(stored) : []
+        recent = recent.filter((r: any) => r.id !== id)
+        recent.unshift({ id, name: customerData.name, timestamp: Date.now() })
+        if (recent.length > 5) recent.pop()
+        await AsyncStorage.setItem(RECENT_KEY, JSON.stringify(recent))
+      } catch (err) {
+        console.warn('Failed to save recent view', err)
+      }
 
       // Fetch temporary signed URL for Front ID
       if (customerData.id_card_url) {
@@ -199,6 +214,13 @@ export default function CustomerDetailScreen() {
           onPress: async () => {
             setDeleting(true)
             try {
+              if (customer?.id_card_url || customer?.id_card_back_url) {
+                const paths = []
+                if (customer.id_card_url) paths.push(customer.id_card_url)
+                if (customer.id_card_back_url) paths.push(customer.id_card_back_url)
+                await supabase.storage.from('customer_ids').remove(paths)
+              }
+
               const { error } = await supabase
                 .from('customers')
                 .delete()
@@ -428,7 +450,7 @@ export default function CustomerDetailScreen() {
                   activeOpacity={0.85}
                 >
                   <View style={styles.idVaultImageWrap}>
-                    {isThumbLoading && (
+                    {isThumbFrontLoading && (
                       <View style={[StyleSheet.absoluteFillObject, { alignItems: 'center', justifyContent: 'flex-end', backgroundColor: colors.background, zIndex: 10, borderRadius: 12 }]}>
                         <CustomLoadingBar color={colors.primary} />
                       </View>
@@ -436,8 +458,8 @@ export default function CustomerDetailScreen() {
                     <Image
                       source={{ uri: idImageFrontUrl }}
                       style={styles.idVaultImage}
-                      onLoadStart={() => setIsThumbLoading(true)}
-                      onLoadEnd={() => setIsThumbLoading(false)}
+                      onLoadStart={() => setIsThumbFrontLoading(true)}
+                      onLoadEnd={() => setIsThumbFrontLoading(false)}
                     />
                   </View>
                   <View style={styles.idVaultFooter}>
@@ -456,7 +478,7 @@ export default function CustomerDetailScreen() {
                   activeOpacity={0.85}
                 >
                   <View style={styles.idVaultImageWrap}>
-                    {isThumbLoading && (
+                    {isThumbBackLoading && (
                       <View style={[StyleSheet.absoluteFillObject, { alignItems: 'center', justifyContent: 'flex-end', backgroundColor: colors.background, zIndex: 10, borderRadius: 12 }]}>
                         <CustomLoadingBar color={colors.primary} />
                       </View>
@@ -464,8 +486,8 @@ export default function CustomerDetailScreen() {
                     <Image
                       source={{ uri: idImageBackUrl }}
                       style={styles.idVaultImage}
-                      onLoadStart={() => setIsThumbLoading(true)}
-                      onLoadEnd={() => setIsThumbLoading(false)}
+                      onLoadStart={() => setIsThumbBackLoading(true)}
+                      onLoadEnd={() => setIsThumbBackLoading(false)}
                     />
                   </View>
                   <View style={styles.idVaultFooter}>
@@ -485,7 +507,7 @@ export default function CustomerDetailScreen() {
         <Animated.View entering={FadeInDown.delay(200).duration(400).springify()}>
           <Text style={[styles.sectionLabel, { color: colors.text }]}>Loan Portfolio</Text>
           <View style={styles.tabsContainer}>
-            {(['all', 'completed', 'overdue'] as LoanFilter[]).map((tab) => {
+            {(['all', 'active', 'completed', 'overdue'] as LoanFilter[]).map((tab) => {
               const count = tab === 'all' ? loans.length : loans.filter(l => l.computedStatus.toLowerCase() === tab).length
               return (
                 <TouchableOpacity

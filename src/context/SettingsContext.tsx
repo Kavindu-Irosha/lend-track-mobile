@@ -6,7 +6,7 @@ export interface AppSettings {
   // Business Defaults
   defaultInterestRate: string
   defaultInstallmentType: 'daily' | 'weekly' | 'monthly'
-  defaultCurrency: 'Rs' | 'LKR' | '$' | '€' | '£' | '₹' | 'A$' | 'C$' | 'S$' | '¥' | 'د.إ' | 'ر.س' | '৳' | '₱' | 'RM' | '฿' | '₫' | 'Rp' | '₽'
+  defaultCurrency: 'Rs' | 'LKR' | '$' | '€' | '£' | '₹' | 'A$' | 'C$' | 'S$' | '¥' | 'د.إ' | 'ر.س' | '৳' | '₱' | 'RM' | '฿' | '₫' | 'Rp' | '₽' | '₪'
   penaltyGraceDays: string
 
   // Notifications

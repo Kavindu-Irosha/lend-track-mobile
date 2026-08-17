@@ -20,10 +20,11 @@ import {
   CreditCard, 
   ChevronRight,
   User,
-  History
+  History,
+  Receipt
 } from 'lucide-react-native'
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated'
-import { formatCurrency, triggerHapticImpact, isPerformanceMode } from '@/src/lib/utils'
+import { formatCurrency, formatAppDate, triggerHapticImpact, isPerformanceMode } from '@/src/lib/utils'
 import LoadingSpinner from '@/src/components/LoadingSpinner'
 import EmptyState from '@/src/components/EmptyState'
 
@@ -35,17 +36,20 @@ export default function GlobalSearchScreen() {
   const [results, setResults] = useState<{
     customers: any[]
     loans: any[]
-  }>({ customers: [], loans: [] })
+    payments: any[]
+  }>({ customers: [], loans: [], payments: [] })
 
   const performSearch = useCallback(async (txt: string) => {
     if (!txt.trim()) {
-      setResults({ customers: [], loans: [] })
+      setResults({ customers: [], loans: [], payments: [] })
       return
     }
 
     setLoading(true)
     try {
-      const [cRes, lRes] = await Promise.all([
+      const numVal = Number(txt.replace(/[^0-9.]/g, ''))
+      
+      const queries: any[] = [
         supabase
           .from('customers')
           .select('id, name, phone')
@@ -56,11 +60,26 @@ export default function GlobalSearchScreen() {
           .select('*, customers(name)')
           .or(`purpose.ilike.%${txt}%,collateral_details.ilike.%${txt}%`)
           .limit(5)
-      ])
+      ]
+
+      if (!isNaN(numVal) && numVal > 0) {
+        queries.push(
+          supabase
+            .from('payments')
+            .select('*, loans(id, customer_id, customers(name))')
+            .eq('amount', numVal)
+            .limit(5) as any
+        )
+      } else {
+        queries.push(Promise.resolve({ data: [] } as any))
+      }
+
+      const [cRes, lRes, pRes] = await Promise.all(queries)
 
       setResults({
         customers: cRes.data || [],
-        loans: lRes.data || []
+        loans: lRes.data || [],
+        payments: pRes.data || []
       })
     } catch (err) {
       console.error('Search Error:', err)
@@ -85,7 +104,7 @@ export default function GlobalSearchScreen() {
     </View>
   )
 
-  const hasResults = results.customers.length > 0 || results.loans.length > 0
+  const hasResults = results.customers.length > 0 || results.loans.length > 0 || results.payments.length > 0
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
@@ -176,6 +195,34 @@ export default function GlobalSearchScreen() {
                     <Text style={[styles.resultName, { color: colors.text }]}>{item.customers?.name}</Text>
                     <Text style={[styles.resultSub, { color: colors.textTertiary }]}>
                       {item.purpose || 'General Loan'} • {formatCurrency(item.amount)}
+                    </Text>
+                  </View>
+                  <ChevronRight size={16} color={colors.textTertiary} />
+                </TouchableOpacity>
+              ))}
+            </Animated.View>
+          )}
+
+          {/* Payments Section */}
+          {results.payments.length > 0 && (
+            <Animated.View entering={FadeInDown.delay(200).duration(400)} style={{ marginTop: 24 }}>
+              {renderSectionHeader('PAYMENTS', Receipt)}
+              {results.payments.map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={[styles.resultItem, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
+                  onPress={() => {
+                    triggerHapticImpact()
+                    router.push(`/(tabs)/customers/${item.loans?.customer_id}`)
+                  }}
+                >
+                  <View style={[styles.avatar, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
+                    <Receipt size={18} color="#3b82f6" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.resultName, { color: colors.text }]}>{formatCurrency(item.amount)}</Text>
+                    <Text style={[styles.resultSub, { color: colors.textTertiary }]}>
+                      {item.loans?.customers?.name || 'Unknown'} • {formatAppDate(new Date(item.payment_date))}
                     </Text>
                   </View>
                   <ChevronRight size={16} color={colors.textTertiary} />
